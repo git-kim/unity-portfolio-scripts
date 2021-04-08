@@ -1,0 +1,17 @@
+* text=auto
+*.h linguist-language=C++
+*.hpp linguist-language=C++
+*.cpp linguist-language=C++
+*.cs linguist-language=C#
+*.cs diff=csharp
+*.vb diff=csharp
+*.fs diff=csharp
+*.fsi diff=csharp
+*.fsx diff=csharp
+*.sln text eol=crlf merge=union
+*.csproj merge=union
+*.vbproj merge=union
+*.fsproj merge=union
+*.dbproj merge=union
+*.vcxproj merge=union
+*.vcxproj.filters merge=union
