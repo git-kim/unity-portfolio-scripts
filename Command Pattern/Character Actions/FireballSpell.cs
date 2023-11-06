@@ -1,66 +1,62 @@
 ﻿using UnityEngine;
-using CommandPattern;
 using FluentBuilderPattern;
 using System.Collections;
 
 public class FireballSpell : NonSelfTargetedAction
 {
-    readonly FireballSpawner fireballSpawner;
-    readonly IDamageable actorIDamageable;
-    IDamageable targetIDamageable;
-    int actionID;
-    int mPCost;
-    float range;
+    private readonly FireballSpawner fireballSpawner;
+    private readonly IDamageable actorIDamageable;
+    private IDamageable targetIDamageable;
+    private int actionID;
+    private int mPCost;
+    private float range;
 
     public FireballSpell(GameObject actor)
     {
-        GAME = GameManager.Instance;
-
         actorIDamageable = actor.GetComponent<IDamageable>();
-        if (actorIDamageable is null)
+        if (actorIDamageable.SelfOrNull() == null)
             Debug.LogError(GetType().Name + " 사용 객체에 IDamageable이 존재하지 않습니다.");
 
         fireballSpawner = actor.GetComponentInChildren<FireballSpawner>();
-        if (fireballSpawner is null)
+        if (fireballSpawner == null)
             Debug.LogError(GetType().Name + " 사용 객체에 FireballSpawner가 존재하지 않습니다.");
 
-        actorMonoBehaviour = actor.GetComponent<MonoBehaviour>();
-        actorIActable = actor.GetComponent<IActable>();
-        actorAnim = actor.GetComponent<Animator>();
-        actorStats = actorIActable.Stats;
-        actorTransform = actor.transform;
+        ActorMonoBehaviour = actor.GetComponent<MonoBehaviour>();
+        ActorIActable = actor.GetComponent<IActable>();
+        ActorAnimator = actor.GetComponent<Animator>();
+        ActorStats = ActorIActable.Stats;
+        ActorTransform = actor.transform;
     }
 
-
     // 액션 취하기용 코루틴
-    IEnumerator TakeAction(int mPCost, float range, int actionID, int actorID)
+    private IEnumerator TakeAction(int mPCost, float range, int actionID, int actorID)
     {
         // 거리 검사
-        if (Vector3.SqrMagnitude(actorTransform.position - target.transform.position) > range * range)
+        if (Vector3.SqrMagnitude(ActorTransform.position - Target.transform.position) > range * range)
         {
-            GAME.ShowErrorMessage(1); // 거리 초과 메시지 출력
+            GameManagerInstance.ShowErrorMessage(1); // 거리 초과 메시지 출력
             yield break;
         }
 
-        actorAnim.SetInteger("ActionMode", actionID); // ActionMode에 actionID 값을 저장한다(애니메이션 시작).
-        actorIActable.ActionBeingTaken = actionID;
+        ActorAnimator.SetInteger(ActionMode, actionID); // ActionMode에 actionID 값을 저장한다(애니메이션 시작).
+        ActorIActable.ActionBeingTaken = actionID;
 
-        actionName = actorIActable.ActionCommands[actionID].name;
+        ActionName = ActorIActable.ActionCommands[actionID].name;
 
-        actorIActable.VisibleGlobalCoolDownTime = CoolDownTime;
-        actorIActable.InvisibleGlobalCoolDownTime = InvisibleGlobalCoolDownTime;
+        ActorIActable.VisibleGlobalCoolDownTime = CoolDownTime;
+        ActorIActable.InvisibleGlobalCoolDownTime = InvisibleGlobalCoolDownTime;
         //if (CastTime > 0f)
         //{
-            if (!(actorIActable.CastingBarDisplay is null))
-                actorIActable.CastingBarDisplay.ShowCastingBar(actionID, CastTime);
-            actorIActable.IsCasting = true;
+            if (!(ActorIActable.CastingBarDisplay == null))
+                ActorIActable.CastingBarDisplay.ShowCastingBar(actionID, CastTime);
+            ActorIActable.IsCasting = true;
             yield return new WaitForSeconds(CastTime);
             //actorAnim.SetTrigger("NextClip");
-            actorIActable.IsCasting = false;
+            ActorIActable.IsCasting = false;
             if (!actorIDamageable.IsDead && !targetIDamageable.IsDead)
             {
-                fireballSpawner.SpawnFireball(target, actorStats[Stat.magicAttackPower], in actionName);
-                actorIDamageable.DecreaseStat(Stat.mP, mPCost, false, false);
+                fireballSpawner.SpawnFireball(Target, ActorStats[Stat.MagicAttackPower], in ActionName);
+                actorIDamageable.DecreaseStat(Stat.MP, mPCost, false, false);
 
                 if (targetIDamageable is Enemy enemy && !actorIDamageable.IsDead)
                 {
@@ -79,41 +75,42 @@ public class FireballSpell : NonSelfTargetedAction
         //    }
         //}
 
-        if (actorAnim.GetInteger("ActionMode") == actionID)
-            actorAnim.SetInteger("ActionMode", 0); // ActionMode 값을 초기화한다(애니메이션 중지).
+        if (ActorAnimator.GetInteger(ActionMode) == actionID)
+            ActorAnimator.SetInteger(ActionMode, 0); // ActionMode 값을 초기화한다(애니메이션 중지).
 
-        actorIActable.ActionBeingTaken = 0;
+        ActorIActable.ActionBeingTaken = 0;
     }
 
 
-    override public void Execute(int actorID, GameObject target, ActionInfo actionInfo)
+    public override void Execute(int actorID, GameObject target, ActionInfo actionInfo)
     {
         mPCost = actionInfo.mPCost;
 
         // MP 검사
-        if (mPCost > actorStats[Stat.mP])
+        if (mPCost > ActorStats[Stat.MP])
         {
-            GAME.ShowErrorMessage(0); // MP 부족 메시지 출력
+            GameManagerInstance.ShowErrorMessage(0); // MP 부족 메시지 출력
             return;
         }
 
         // 대상 검사
-        if (target is null)
+        if (target == null)
         {
-            GAME.ShowErrorMessage(3);
+            GameManagerInstance.ShowErrorMessage(3);
             return;
         }
 
-        this.target = target;
+        Target = target;
         targetIDamageable = target.GetComponent<IDamageable>();
 
         // 추가 검사(대상, 사용자)
-        if (targetIDamageable is null || actorIDamageable.ID.Equals(targetIDamageable.ID))
+        if (targetIDamageable.SelfOrNull() == null || actorIDamageable.Identifier.Equals(targetIDamageable.Identifier))
         {
-            GAME.ShowErrorMessage(2);
+            GameManagerInstance.ShowErrorMessage(2);
             return;
         }
-        else if (actorIDamageable.IsDead || targetIDamageable.IsDead)
+
+        if (actorIDamageable.IsDead || targetIDamageable.IsDead)
         {
             return;
         }
@@ -124,25 +121,25 @@ public class FireballSpell : NonSelfTargetedAction
         actionID = actionInfo.id;
         range = actionInfo.range;
 
-        CurrentActionCoroutine = actorMonoBehaviour.StartCoroutine(TakeAction(mPCost, range, actionID, actorID));
+        CurrentActionCoroutine = ActorMonoBehaviour.StartCoroutine(TakeAction(mPCost, range, actionID, actorID));
     }
 
-    override public void Stop()
+    public override void Stop()
     {
-        if (!(CurrentActionCoroutine is null))
+        if (CurrentActionCoroutine != null)
         {
-            actorMonoBehaviour.StopCoroutine(CurrentActionCoroutine);
-            actorAnim.SetInteger("ActionMode", 0); // ActionMode 값을 초기화한다(애니메이션 중지).
+            ActorMonoBehaviour.StopCoroutine(CurrentActionCoroutine);
+            ActorAnimator.SetInteger(ActionMode, 0); // ActionMode 값을 초기화한다(애니메이션 중지).
             CurrentActionCoroutine = null;
         }
 
-        // actorIActable.ActionToTake = 0;
-        actorIActable.ActionBeingTaken = 0;
-        actorIActable.VisibleGlobalCoolDownTime = 0f;
-        actorIActable.InvisibleGlobalCoolDownTime = 0f;
-        actorIActable.IsCasting = false;
+        // ActorIActable.ActionToTake = 0;
+        ActorIActable.ActionBeingTaken = 0;
+        ActorIActable.VisibleGlobalCoolDownTime = 0f;
+        ActorIActable.InvisibleGlobalCoolDownTime = 0f;
+        ActorIActable.IsCasting = false;
 
-        if (!(actorIActable.CastingBarDisplay is null))
-            actorIActable.CastingBarDisplay.StopShowingCastingBar();
+        if (ActorIActable.CastingBarDisplay != null)
+            ActorIActable.CastingBarDisplay.StopShowingCastingBar();
     }
 }

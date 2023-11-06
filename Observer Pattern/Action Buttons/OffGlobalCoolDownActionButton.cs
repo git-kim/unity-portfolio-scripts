@@ -1,107 +1,105 @@
 ﻿using System.Collections;
-using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using FluentBuilderPattern;
 
 public class OffGlobalCoolDownActionButton : ActionButton
 {
-    GameManager GAME;
-    UIProgressBar coolDownTimeIndicator;
-    DisablenessIndicator disablenessIndicator;
-    UILabel mPCostIndicator;
-    int mPCost = 0;
-    float sqrRange = 0f;
+    private GameManager gameManagerInstance;
+    private UIProgressBar coolDownTimeIndicator;
+    private DisablenessIndicator disablenessIndicator;
+    private UILabel mPCostIndicator;
+    private int mPCost = 0;
+    private float sqrRange = 0f;
 
-    float currentCoolDownTime;
+    private float currentCoolDownTime;
 
     //[Tooltip("액션 재사용 대기 시간")] [SerializeField]
-    float actionCoolDownTime;
+    private float actionCoolDownTime;
 
-    Coroutine coolDownCoroutine;
+    private Coroutine coolDownCoroutine;
 
     [Tooltip("글로벌 액션 재사용 대기 중에 사용이 가능한가?")] [SerializeField]
-    bool isUsableDuringGlobalCoolDown;
+    private bool isUsableDuringGlobalCoolDown;
 
-    void Awake()
+    private void Awake()
     {
-        GAME = GameManager.Instance;
+        gameManagerInstance = GameManager.Instance;
         coolDownTimeIndicator = GetComponentInChildren<UIProgressBar>(true);
         disablenessIndicator = GetComponentInChildren<DisablenessIndicator>(true);
 
-        foreach (UILabel mPCostIndicator in GetComponentsInChildren<UILabel>(true).Where(mPCostIndicator => mPCostIndicator.name.Contains("MP")))
+        foreach (var indicator in GetComponentsInChildren<UILabel>(true)
+                     .Where(indicator => indicator.name.Contains("MP")))
         {
-            this.mPCostIndicator = mPCostIndicator;
+            mPCostIndicator = indicator;
             break;
         }
 
         coolDownCoroutine = null;
     }
 
-    void Start()
+    private void Start()
     {
         if (!HasPlayerVariablesBeenSet)
             SetPlayerVariables();
 
-        mPCost = playerActionCommands[actionID].mPCost;
-        sqrRange = Mathf.Pow(playerActionCommands[actionID].range, 2f);
+        mPCost = PlayerActionCommands[actionID].mPCost;
+        sqrRange = Mathf.Pow(PlayerActionCommands[actionID].range, 2f);
 
         currentCoolDownTime = 0f;
-        actionCoolDownTime = player.ActionCommands[actionID].coolDownTime;
+        actionCoolDownTime = Player.ActionCommands[actionID].coolDownTime;
     }
 
-    sealed override public void React()
+    public sealed override void React()
     {
         if (currentCoolDownTime > 0f)
             coolDownTimeIndicator.Set(currentCoolDownTime / actionCoolDownTime, false);
         else
             coolDownTimeIndicator.Set(0f, false);
 
-        if ((player.VisibleGlobalCoolDownTime > 0f && !isUsableDuringGlobalCoolDown)
-            || GAME.State != GameState.Running
-            || player.IsCasting)
+        if ((Player.VisibleGlobalCoolDownTime > 0f && !isUsableDuringGlobalCoolDown)
+            || gameManagerInstance.State != GameState.Running
+            || Player.IsCasting)
             disablenessIndicator.Enable();
         else disablenessIndicator.Disable();
     }
 
-    sealed override public void React2()
+    public sealed override void React2()
     {
         if (mPCost == 0 || sqrRange == 0f) return;
 
         // MP 검사
-        if (player.Stats[Stat.mP] < mPCost)
+        if (Player.Stats[Stat.MP] < mPCost)
         {
-            mPCostIndicator.effectColor = unusablenessColor;
+            mPCostIndicator.effectColor = UnusablenessColor;
             return;
         }
         else
         {
-            mPCostIndicator.effectColor = usablenessColor;
+            mPCostIndicator.effectColor = UsablenessColor;
         }
 
         // 거리 검사
-        if (player.SqrDistanceFromCurrentTarget > sqrRange)
+        if (Player.SqrDistanceFromCurrentTarget > sqrRange)
         {
-            mPCostIndicator.effectColor = unusablenessColor;
+            mPCostIndicator.effectColor = UnusablenessColor;
             return;
         }
-        else
-        {
-            mPCostIndicator.effectColor = usablenessColor;
-        }
+
+        mPCostIndicator.effectColor = UsablenessColor;
     }
 
     public void StartCoolDown()
     {
         currentCoolDownTime = actionCoolDownTime;
 
-        if (!(coolDownCoroutine is null))
+        if (coolDownCoroutine != null)
             StopCoroutine(coolDownCoroutine);
 
         coolDownCoroutine = StartCoroutine(UpdateCoolDown());
     }
 
-    IEnumerator UpdateCoolDown()
+    private IEnumerator UpdateCoolDown()
     {
         while (currentCoolDownTime > 0f)
         {
@@ -119,7 +117,7 @@ public class OffGlobalCoolDownActionButton : ActionButton
     public void StopCoolDown()
     {
         currentCoolDownTime = 0f;
-        if (!(coolDownCoroutine is null))
+        if (coolDownCoroutine != null)
             StopCoroutine(coolDownCoroutine);
     }
 }

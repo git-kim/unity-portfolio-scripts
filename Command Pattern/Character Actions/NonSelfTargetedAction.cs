@@ -1,37 +1,38 @@
-﻿using System.Collections;
-using UnityEngine;
+﻿using UnityEngine;
 using FluentBuilderPattern;
 using CommandPattern;
 
-abstract public class NonSelfTargetedAction: ICommand
+public abstract class NonSelfTargetedAction: ICommand
 {
-    protected GameManager GAME = GameManager.Instance;
+    protected readonly GameManager GameManagerInstance = GameManager.Instance;
 
     public Coroutine CurrentActionCoroutine { get; set; } = null;
 
-    protected string actionName;
+    protected string ActionName;
+
+    protected static readonly int ActionMode = Animator.StringToHash("ActionMode");
 
     // 사용자
-    protected MonoBehaviour actorMonoBehaviour;
-    protected IActable actorIActable;
-    protected Animator actorAnim;
-    protected Statistics actorStats;
-    protected Transform actorTransform;
-    // protected Actions actorActionCommands;
+    protected MonoBehaviour ActorMonoBehaviour;
+    protected IActable ActorIActable;
+    protected Animator ActorAnimator;
+    protected Statistics ActorStats;
+    protected Transform ActorTransform;
+    // protected Actions ActorActionCommands;
 
     // 대상
-    protected GameObject target;
+    protected GameObject Target;
 
     // 캐스팅 시간
-    public float CastTime { get; protected set; }
+    protected float CastTime { get; set; }
 
     // 캐스팅 후 애니메이션 또는 파티클 효과 재생 시간
-    public float InvisibleGlobalCoolDownTime { get; protected set; }
+    protected float InvisibleGlobalCoolDownTime { get; set; }
 
     // 재사용 대기 시간
-    public float CoolDownTime { get; protected set; }
+    protected float CoolDownTime { get; set; }
 
-    abstract public void Execute(int actorID, GameObject target, ActionInfo actionInfo);
+    public abstract void Execute(int actorID, GameObject target, ActionInfo actionInfo);
 
-    abstract public void Stop();
+    public abstract void Stop();
 }

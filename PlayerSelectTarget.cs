@@ -1,45 +1,44 @@
 ﻿using UnityEngine;
-using Cinemachine;
 
 public class PlayerSelectTarget : MonoBehaviour
 {
-    Player player;
-    Camera mainCamera;
-    KeyManager KEY;
-    Ray ray;
-    RaycastHit hitInfo;
+    private Player player;
+    private Camera mainCamera;
+    private KeyManager keyManagerInstance;
+    private Ray ray;
+    private RaycastHit hit;
 
-    void Start()
+    private void Start()
     {
         player = FindObjectOfType<Player>().GetComponent<Player>();
         mainCamera = Camera.main;
-        KEY = KeyManager.Instance;
+        keyManagerInstance = KeyManager.Instance;
     }
 
-    void Update()
+    private void Update()
     {
-        if (KEY.LMBDown)
+        if (!keyManagerInstance.LMBDown)
+            return;
+
+        ray = mainCamera.ScreenPointToRay(Input.mousePosition);
+
+        if (UICamera.Raycast(Input.mousePosition)) // NGUI 객체가 선택되었을 때
         {
-            ray = mainCamera.ScreenPointToRay(Input.mousePosition);
+            return;
+        }
 
-            if (UICamera.Raycast(Input.mousePosition)) // NGUI 객체가 선택되었을 때
+        if (Physics.SphereCast(ray, 0.8f, out hit, 34f, 1 << 11)) // 11번 레이어: Enemy
+        {
+            if (Physics.Raycast(ray, hit.distance, 1 << 9)) // 9번 레이어: Ground
             {
-                 return;
+                return;
             }
 
-            if (Physics.SphereCast(ray, 0.8f, out hitInfo, 34f, 1 << 11)) // 11번 레이어: Enemy
-            {
-                if (Physics.Raycast(ray, hitInfo.distance, 1 << 9)) // 9번 레이어: Ground
-                {
-                    return;
-                }
-
-                player.SelectTarget(hitInfo.collider.gameObject);
-            }
-            else
-            {
-                player.DeselectTarget();
-            }
+            player.SelectTarget(hit.collider.gameObject);
+        }
+        else
+        {
+            player.DeselectTarget();
         }
     }
 }

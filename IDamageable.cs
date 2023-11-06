@@ -3,8 +3,7 @@ using FluentBuilderPattern;
 
 public interface IDamageable
 {
-    int ID { get; }
-
+    int Identifier { get; }
     bool IsDead { get; set; }
 
     void IncreaseStat(Stat stat, int increment, bool shouldShowDigits = false, bool additionalOption = false);

@@ -1,11 +1,9 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using CommandPattern;
 
 public class NullAction : ICommand
 {
-    readonly IActable actorIActable;
+    private readonly IActable actorIActable;
 
     public NullAction(GameObject actor)
     {

@@ -1,18 +1,16 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class SFX : MonoBehaviour
 {
     public GameObject prefab;
-    GameObject sFX;
-    AudioSource audioSource;
-    float audioSourceVolumeFactor;
-    GameManager GAME;
+    private GameObject sFX;
+    private AudioSource audioSource;
+    private float audioSourceVolumeFactor;
+    private GameManager gameManagerInstance;
 
-    void Awake()
+    private void Awake()
     {
-        GAME = GameManager.Instance;
+        gameManagerInstance = GameManager.Instance;
 
         sFX = Instantiate(prefab, transform.position, Quaternion.identity);
         audioSource = sFX.GetComponent<AudioSource>();
@@ -20,17 +18,17 @@ public class SFX : MonoBehaviour
         sFX.transform.SetParent(gameObject.transform);
     }
 
-    void OnEnable()
+    private void OnEnable()
     {
-        if (audioSource)
-        {
-            audioSource.volume = GAME.MasterVolume * GAME.SFXVolume * audioSourceVolumeFactor;
-            audioSource.Play();
-        }
+        if (!audioSource)
+            return;
+
+        audioSource.volume = gameManagerInstance.MasterVolume * gameManagerInstance.SFXVolume * audioSourceVolumeFactor;
+        audioSource.Play();
     }
 
     // Update is called once per frame
-    void OnDisable()
+    private void OnDisable()
     {
         if (audioSource) audioSource.Stop();
     }

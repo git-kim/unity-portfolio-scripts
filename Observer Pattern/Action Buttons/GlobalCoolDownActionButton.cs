@@ -1,71 +1,66 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Linq;
 using UnityEngine;
 using FluentBuilderPattern;
 
 public class GlobalCoolDownActionButton : ActionButton
 {
-    GameManager GAME;
-    UIProgressBar coolDownTimeIndicator;
-    DisablenessIndicator disablenessIndicator;
-    UILabel mPCostIndicator;
-    int mPCost = 0;
-    float sqrRange = 0f;
+    private GameManager gameManagerInstance;
+    private UIProgressBar coolDownTimeIndicator;
+    private DisablenessIndicator disablenessIndicator;
+    private UILabel mPCostIndicator;
+    private int mPCost = 0;
+    private float sqrRange = 0f;
 
-    void Awake()
+    private void Awake()
     {
-        GAME = GameManager.Instance;
+        gameManagerInstance = GameManager.Instance;
         coolDownTimeIndicator = GetComponentInChildren<UIProgressBar>(true);
         disablenessIndicator = GetComponentInChildren<DisablenessIndicator>(true);
 
-        foreach (UILabel mPCostIndicator in GetComponentsInChildren<UILabel>(true).Where(mPCostIndicator => mPCostIndicator.name.Contains("MP")))
+        foreach (var indicator in GetComponentsInChildren<UILabel>(true)
+                     .Where(indicator => indicator.name.Contains("MP")))
         {
-            this.mPCostIndicator = mPCostIndicator;
+            mPCostIndicator = indicator;
             break;
         }
     }
 
-    void Start()
+    private void Start()
     {
         if (!HasPlayerVariablesBeenSet)
             SetPlayerVariables();
 
-        mPCost = playerActionCommands[actionID].mPCost;
-        sqrRange = Mathf.Pow(playerActionCommands[actionID].range, 2f);
+        mPCost = PlayerActionCommands[actionID].mPCost;
+        sqrRange = Mathf.Pow(PlayerActionCommands[actionID].range, 2f);
     }
 
-    sealed override public void React()
+    public sealed override void React()
     {
-        coolDownTimeIndicator.Set(player.VisibleGlobalCoolDownTime / player.GlobalCoolDownTime, false);
-        if (GAME.State != GameState.Running) disablenessIndicator.Enable();
-        else if (player.VisibleGlobalCoolDownTime <= 0f) disablenessIndicator.Disable();
+        coolDownTimeIndicator.Set(Player.VisibleGlobalCoolDownTime / Player.GlobalCoolDownTime, false);
+        if (gameManagerInstance.State != GameState.Running) disablenessIndicator.Enable();
+        else if (Player.VisibleGlobalCoolDownTime <= 0f) disablenessIndicator.Disable();
     }
 
-    sealed override public void React2()
+    public sealed override void React2()
     {
         if (mPCost == 0 || sqrRange == 0f) return;
 
         // MP 검사
-        if (player.Stats[Stat.mP] < mPCost)
+        if (Player.Stats[Stat.MP] < mPCost)
         {
-            mPCostIndicator.effectColor = unusablenessColor;
+            mPCostIndicator.effectColor = UnusablenessColor;
             return;
-        }
-        else
-        {
-            mPCostIndicator.effectColor = usablenessColor;
         }
 
+        mPCostIndicator.effectColor = UsablenessColor;
+
         // 거리 검사
-        if (player.SqrDistanceFromCurrentTarget > sqrRange)
+        if (Player.SqrDistanceFromCurrentTarget > sqrRange)
         {
-            mPCostIndicator.effectColor = unusablenessColor;
+            mPCostIndicator.effectColor = UnusablenessColor;
             return;
         }
-        else
-        {
-            mPCostIndicator.effectColor = usablenessColor;
-        }
+
+        mPCostIndicator.effectColor = UsablenessColor;
     }
 }

@@ -1,4 +1,4 @@
-﻿using System.Collections;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
@@ -7,11 +7,11 @@ public enum GameState { Running, CutscenePlaying, Over }
 
 public class GameManager : Singleton<GameManager>
 {
-    object lockObj = new object();
+    private readonly object lockObj = new object();
     public Dictionary<int, Transform> PlayersAlive { get; set; } = new Dictionary<int, Transform>();
     public Dictionary<int, Transform> EnemiesAlive { get; set; } = new Dictionary<int, Transform>();
 
-    public bool IsInBattle = false;
+    [NonSerialized] public bool IsInBattle = false;
 
     public int AddPlayerAlive(int id, Transform playerTransform)
     {
@@ -51,9 +51,8 @@ public class GameManager : Singleton<GameManager>
     public float BGMVolume { get; set; } = 1f;
     public float SFXVolume { get; set; } = 1f;
 
-    public readonly float gravity = 9.80665f; // 1 standard gravity ≡ 9.80665 m/s²
-
-    [HideInInspector] public UnityEvent OnGameTick, OnGameTick2;
+    [HideInInspector] public UnityEvent onGameTick;
+    [HideInInspector] public UnityEvent onGameTick2;
 
     [SerializeField]
     List<BuffInformationObject> buffs = new BuffInfoList(); // 주의: = new List<BuffInformationObject>();을 사용하면 이 변수의 형을 BuffInfoList으로 변환할 수 없다.
@@ -74,9 +73,13 @@ public class GameManager : Singleton<GameManager>
     {
         Debug.DrawLine(start, end, Color.red);
 
-        if (!Physics.CheckCapsule(start, end, radius, layerMask, queryTriggerInteraction)) return false;
-        Vector3 startToEnd = end - start;
-        return Physics.CheckBox(start + 0.5f * startToEnd, new Vector3(radius, radius, startToEnd.magnitude * 0.5f), Quaternion.LookRotation(startToEnd), layerMask, queryTriggerInteraction);
+        if (!Physics.CheckCapsule(start, end, radius, layerMask, queryTriggerInteraction))
+            return false;
+
+        var startToEnd = end - start;
+        return Physics.CheckBox(start + 0.5f * startToEnd,
+            new Vector3(radius, radius, startToEnd.magnitude * 0.5f),
+            Quaternion.LookRotation(startToEnd), layerMask, queryTriggerInteraction);
     }
 
     public void ShowErrorMessage(int errMsgID)
@@ -86,7 +89,7 @@ public class GameManager : Singleton<GameManager>
 
     void Tick()
     {
-        OnGameTick.Invoke();
+        onGameTick.Invoke();
         
         if (IsInBattle && EnemiesAlive.Count == 0)
             IsInBattle = false;
@@ -95,11 +98,10 @@ public class GameManager : Singleton<GameManager>
             IsInBattle = false;
             State = GameState.Over;
         }
-
     }
 
     void Tick2()
     {
-        OnGameTick2.Invoke();
+        onGameTick2.Invoke();
     }
 }

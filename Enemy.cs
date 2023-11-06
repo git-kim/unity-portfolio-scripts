@@ -1,44 +1,37 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using FluentBuilderPattern;
 using UnityEngine.AI;
 
 public class Enemy : Character, IDamageable, IActable, ISelectable
 {
-    enum EnemyState
+    private enum EnemyState
     {
-        idling,
-        locomoting,
-        attacking,
-        casting,
-        returning,
-        dying,
-        dead
+        Idling,
+        Locomoting,
+        Attacking,
+        Casting,
+        Returning,
+        Dying,
+        Dead
     }
 
-    EnemyState state;
+    private EnemyState state;
 
-    const float maxSquareOfChaseDistance = 2500f;
-    const float maxSquareOfMeleeAttackRange = 25f;
-    const float squareOfStoppingDistance = 16f;
-    const float squareOfPlayerDetectionRange = 100f;
+    private const float MaxSquareOfChaseDistance = 2500f;
+    private const float MaxSquareOfMeleeAttackRange = 25f;
+    private const float SquareOfStoppingDistance = 16f;
+    private const float SquareOfPlayerDetectionRange = 100f;
 
-    GameManager GAME;
-    Statistics stats;
-    Transform currentTargetTransform, enemyTransform;
-    public Statistics Stats { get => stats; set { Stats = stats; } }
+    private GameManager gameManagerInstance;
+    private Transform currentTargetTransform, enemyTransform;
+    public Statistics Stats { get; set; }
 
-    readonly Actions actionCommands = new Actions();
-    public Actions ActionCommands => actionCommands;
+    public Actions ActionCommands { get; } = new Actions();
 
-    private float sqrDistanceFromCurrentTarget = 0f;
-    public float SqrDistanceFromCurrentTarget => sqrDistanceFromCurrentTarget;
+    public float SqrDistanceFromCurrentTarget { get; private set; } = 0f;
 
-    public int ID => id;
-
-    EnemyHPDisplay enemyHPDisplay;
+    private EnemyHPDisplay enemyHPDisplay;
     public Dictionary<int, KeyValuePair<Stat, int>> ActiveBuffEffects { get; set; } = new Dictionary<int, KeyValuePair<Stat, int>>();
     public TargetIndicator TargetIndicator { get; set; }
 
@@ -50,36 +43,39 @@ public class Enemy : Character, IDamageable, IActable, ISelectable
     public float VisibleGlobalCoolDownTime { get; set; }
     public float InvisibleGlobalCoolDownTime { get; set; }
 
-    static public float globalCoolDownTime = 2f;
-    public float GlobalCoolDownTime => globalCoolDownTime;
+    public float GlobalCoolDownTime => 2f;
 
     private CastingBarDisplay castingBarDisplay;
-    public CastingBarDisplay CastingBarDisplay { get { return castingBarDisplay; } }
+    public CastingBarDisplay CastingBarDisplay => castingBarDisplay;
 
-    IStatChangeDisplay enemyIStatChangeDisplay;
+    private IStatChangeDisplay enemyIStatChangeDisplay;
 
-    IDamageable currentTargetIDamageable;
+    private IDamageable currentTargetIDamageable;
 
-    public IStatChangeDisplay EnemyIStatChangeDisplay { get { return enemyIStatChangeDisplay; } }
+    public IStatChangeDisplay EnemyIStatChangeDisplay => enemyIStatChangeDisplay;
 
-    bool hasEnmityListBeenUpdated = false;
+    private bool hasEnmityListBeenUpdated = false;
 
-    Dictionary<int, uint> enmitiesAgainstPlayers = new Dictionary<int, uint>(); // 키: 플레이어 ID; 값: 적개감 수치
+    private readonly Dictionary<int, uint> enmitiesAgainstPlayers = new Dictionary<int, uint>(); // 키: 플레이어 ID; 값: 적개감 수치
 
-    NavMeshAgent navMeshAgent;
+    private NavMeshAgent navMeshAgent;
 
-    Vector3 originalPosition;
-    Quaternion originalRotation;
+    private Vector3 originalPosition;
+    private Quaternion originalRotation;
 
-    float timeToAttack = 3f;
+    private float timeToAttack = 3f;
 
-    float timePassedSinceReset = 0f;
+    private float timePassedSinceReset = 0f;
 
-    override protected void Awake()
+    private static readonly int MovementMode = Animator.StringToHash("MovementMode");
+    private static readonly int Attack = Animator.StringToHash("Attack");
+    private static readonly int Dead = Animator.StringToHash("Dead");
+
+    protected override void Awake()
     {
-        GAME = GameManager.Instance;
+        gameManagerInstance = GameManager.Instance;
 
-        id = 100;
+        Identifier = 100;
 
         SetInitialStats(); // 초기 스탯 설정
 
@@ -88,32 +84,28 @@ public class Enemy : Character, IDamageable, IActable, ISelectable
         TargetIndicator = gameObject.GetComponentInChildren<TargetIndicator>(true);
         TargetIndicator.Disable();
 
-        castingBarDisplay = null; // 리마인더: 지정 필요
+        castingBarDisplay = null; // todo: 지정 필요
 
-        currentTarget = recentTarget = null;
+        CurrentTarget = RecentTarget = null;
         currentTargetTransform = null;
         enemyTransform = gameObject.transform;
         originalPosition = enemyTransform.position;
         originalRotation = enemyTransform.rotation;
 
-        anim = gameObject.GetComponent<Animator>();
+        Animator = gameObject.GetComponent<Animator>();
 
         navMeshAgent = gameObject.GetComponent<NavMeshAgent>();
         //navMeshAgent.stoppingDistance = Mathf.Sqrt(squareOfStoppingDistance) * 0.84f;
 
-        
         //locomotionSpeed = 6f;
-
-        //cC = gameObject.GetComponent<CharacterController>();
-        //cCTransform = cC.transform;
     }
 
     private void SetInitialStats()
     {
-        stats = new StatisticsBuilder()
-            .SetHP(5000).SetMaxHP(5000)
+        Stats = new StatisticsBuilder()
+            .SetHP(2500).SetMaxHP(2500)
             .SetMP(1).SetMaxMP(1)
-            .SetMeleeAttackPower(250)
+            .SetMeleeAttackPower(270)
             .SetMeleeDefensePower(160)
             .SetMagicAttackPower(10)
             .SetMagicDefensePower(10);
@@ -130,40 +122,37 @@ public class Enemy : Character, IDamageable, IActable, ISelectable
         hasEnmityListBeenUpdated = true;
     }
 
-    override protected void Start()
+    protected override void Start()
     {
         enemyHPDisplay = FindObjectOfType<EnemyHPDisplay>();
-        id = GAME.AddEnemyAlive(id, enemyTransform);
-        GAME.OnGameTick.AddListener(UpdateStat);
-        GAME.OnGameTick2.AddListener(UpdateCurrentTarget);
+        Identifier = gameManagerInstance.AddEnemyAlive(Identifier, enemyTransform);
+        gameManagerInstance.onGameTick.AddListener(UpdateStat);
+        gameManagerInstance.onGameTick2.AddListener(UpdateCurrentTarget);
 
-        state = EnemyState.idling;
+        state = EnemyState.Idling;
     }
 
-    override protected void Update()
+    protected override void Update()
     {
         switch (state)
         {
-            case EnemyState.idling:
+            case EnemyState.Idling:
                 Idle();
                 break;
-            case EnemyState.locomoting:
+            case EnemyState.Locomoting:
                 ChasePlayer();
                 break;
-            case EnemyState.attacking:
+            case EnemyState.Attacking:
                 AttackPlayer();
                 break;
-            case EnemyState.casting:
+            case EnemyState.Casting:
 
                 break;
-            case EnemyState.returning:
+            case EnemyState.Returning:
                 ReturnToOriginalPosition();
                 break;
-            case EnemyState.dying:
+            case EnemyState.Dying:
                 Die();
-                break;
-            default:
-
                 break;
         }
     }
@@ -182,47 +171,48 @@ public class Enemy : Character, IDamageable, IActable, ISelectable
 
     private void Die()
     {
-        anim.SetTrigger("Dead");
-        GAME.EnemiesAlive.Remove(id);
+        Animator.SetTrigger(Dead);
+        gameManagerInstance.EnemiesAlive.Remove(Identifier);
         navMeshAgent.enabled = false;
         StopAllCoroutines();
-        state = EnemyState.dead;
+        state = EnemyState.Dead;
     }
 
     private void ReturnToOriginalPosition()
     {
         if (navMeshAgent.remainingDistance < 0.05f)
         {
-            transform.position = originalPosition;
-            transform.rotation = originalRotation;
+            var thisTransform = transform;
+            thisTransform.position = originalPosition;
+            thisTransform.rotation = originalRotation;
             navMeshAgent.velocity = Vector3.zero;
 
             ActiveBuffEffects.Clear();
-            stats[Stat.hP] = stats[Stat.maxHP];
+            Stats[Stat.HP] = Stats[Stat.MaxHP];
 
-            state = EnemyState.idling;
-            anim.SetInteger("MovementMode", 0);
+            state = EnemyState.Idling;
+            Animator.SetInteger(MovementMode, 0);
         }
     }
 
     private void AttackPlayer()
     {
-        if (GAME.PlayersAlive.Count == 0)
+        if (gameManagerInstance.PlayersAlive.Count == 0)
         {
             navMeshAgent.SetDestination(originalPosition);
-            state = EnemyState.returning;
+            state = EnemyState.Returning;
             return;
         }
 
-        if (currentTargetIDamageable is null || currentTargetIDamageable.IsDead) return;
+        if (currentTargetIDamageable == null || currentTargetIDamageable.IsDead) return;
 
-        sqrDistanceFromCurrentTarget = GetSqrDistance(enemyTransform.position, currentTargetTransform.position);
+        SqrDistanceFromCurrentTarget = GetSqrDistance(enemyTransform.position, currentTargetTransform.position);
 
-        if (sqrDistanceFromCurrentTarget <= maxSquareOfMeleeAttackRange)
+        if (SqrDistanceFromCurrentTarget <= MaxSquareOfMeleeAttackRange)
         {
             LookAtCurrentTarget();
 
-            if (sqrDistanceFromCurrentTarget > squareOfStoppingDistance)
+            if (SqrDistanceFromCurrentTarget > SquareOfStoppingDistance)
                 navMeshAgent.SetDestination(currentTargetTransform.position);
             else
                 navMeshAgent.SetDestination(enemyTransform.position);
@@ -231,37 +221,37 @@ public class Enemy : Character, IDamageable, IActable, ISelectable
             if (timePassedSinceReset >= timeToAttack)
             {
                 timePassedSinceReset = 0f;
-                anim.SetInteger("MovementMode", 0);
-                anim.SetTrigger("Attack");
-                currentTargetIDamageable.DecreaseStat(Stat.hP, stats[Stat.meleeAttackPower], true, false);
+                Animator.SetInteger(MovementMode, 0);
+                Animator.SetTrigger(Attack);
+                currentTargetIDamageable.DecreaseStat(Stat.HP, Stats[Stat.MeleeAttackPower], true, false);
             }
         }
         else
         {
-            state = EnemyState.locomoting;
+            state = EnemyState.Locomoting;
             ////  currentTime = 0f;
         }
     }
 
     private void ChasePlayer()
     {
-        if (GAME.PlayersAlive.Count == 0)
+        if (gameManagerInstance.PlayersAlive.Count == 0)
         {
             navMeshAgent.SetDestination(originalPosition);
-            state = EnemyState.returning;
+            state = EnemyState.Returning;
             return;
         }
 
-        if (currentTargetIDamageable is null || currentTargetIDamageable.IsDead) return;
+        if (currentTargetIDamageable == null || currentTargetIDamageable.IsDead) return;
 
-        sqrDistanceFromCurrentTarget = GetSqrDistance(enemyTransform.position, currentTargetTransform.position);
+        SqrDistanceFromCurrentTarget = GetSqrDistance(enemyTransform.position, currentTargetTransform.position);
 
-        if (sqrDistanceFromCurrentTarget > maxSquareOfChaseDistance)
+        if (SqrDistanceFromCurrentTarget > MaxSquareOfChaseDistance)
         {
             // 복귀 상태로 변경하기
-            state = EnemyState.returning;
+            state = EnemyState.Returning;
         }
-        else if (sqrDistanceFromCurrentTarget > maxSquareOfMeleeAttackRange)
+        else if (SqrDistanceFromCurrentTarget > MaxSquareOfMeleeAttackRange)
         {
             // 이동 처리
             navMeshAgent.SetDestination(currentTargetTransform.position); // NavMeshAgent 변수를 사용하여 적 캐릭터를 플레이어 캐릭터 쪽으로 이동한다.
@@ -271,102 +261,99 @@ public class Enemy : Character, IDamageable, IActable, ISelectable
         {
             // 공격 상태로 변경하기
             navMeshAgent.SetDestination(enemyTransform.position);
-            state = EnemyState.attacking;
+            state = EnemyState.Attacking;
             timeToAttack = 2f;
         }
     }
 
-    void Idle()
+    private void Idle()
     {
-        if (enmitiesAgainstPlayers.Count > 0 && currentTarget != null)
+        if (enmitiesAgainstPlayers.Count > 0 && CurrentTarget != null)
         {
-            sqrDistanceFromCurrentTarget = GetSqrDistance(enemyTransform.position, currentTargetTransform.position);
+            SqrDistanceFromCurrentTarget = GetSqrDistance(enemyTransform.position, currentTargetTransform.position);
 
-            if (sqrDistanceFromCurrentTarget <= maxSquareOfChaseDistance)
+            if (SqrDistanceFromCurrentTarget <= MaxSquareOfChaseDistance)
             {
-                if (sqrDistanceFromCurrentTarget > maxSquareOfMeleeAttackRange)
+                if (SqrDistanceFromCurrentTarget > MaxSquareOfMeleeAttackRange)
                 {
                     // 이동 상태로 변경하기
-                    state = EnemyState.locomoting;
+                    state = EnemyState.Locomoting;
                 }
                 else
                 {
                     // 공격 상태로 변경하기
-                    state = EnemyState.attacking;
+                    state = EnemyState.Attacking;
                     timeToAttack = 2f;
                 }
             }
 
-            if (!GAME.IsInBattle) GAME.IsInBattle = true;
+            if (!gameManagerInstance.IsInBattle) gameManagerInstance.IsInBattle = true;
         }
-        else if (GAME.PlayersAlive.Count > 0)
+        else if (gameManagerInstance.PlayersAlive.Count > 0)
         {
-            int foundKey = -1;
-            float sqrDistanceFromPlayer = squareOfPlayerDetectionRange;
+            var foundKey = -1;
+            var sqrDistanceFromPlayer = SquareOfPlayerDetectionRange;
 
-            foreach (int key in GAME.PlayersAlive.Keys)
+            foreach (var key in gameManagerInstance.PlayersAlive.Keys)
             {
-                float thisSqrDistanceFromPlayer = GetSqrDistance(enemyTransform.position, GAME.PlayersAlive[key].position);
-
-                if (thisSqrDistanceFromPlayer <= squareOfPlayerDetectionRange)
-                {
-                    if (sqrDistanceFromPlayer >= thisSqrDistanceFromPlayer)
-                    {
-                        foundKey = key;
-                        sqrDistanceFromPlayer = thisSqrDistanceFromPlayer;
-                    }
-                }
+                var thisSqrDistanceFromPlayer = GetSqrDistance(enemyTransform.position, gameManagerInstance.PlayersAlive[key].position);
+                if (thisSqrDistanceFromPlayer > SquareOfPlayerDetectionRange)
+                    continue;
+                if (sqrDistanceFromPlayer < thisSqrDistanceFromPlayer)
+                    continue;
+                foundKey = key;
+                sqrDistanceFromPlayer = thisSqrDistanceFromPlayer;
             }
 
-            if (foundKey >= 0 && !enmitiesAgainstPlayers.ContainsKey(foundKey))
-            {
-                enmitiesAgainstPlayers.Add(foundKey, 1);
-                hasEnmityListBeenUpdated = true;
-                UpdateCurrentTarget();
-            }
+            if (foundKey < 0 || enmitiesAgainstPlayers.ContainsKey(foundKey))
+                return;
+
+            enmitiesAgainstPlayers.Add(foundKey, 1);
+            hasEnmityListBeenUpdated = true;
+            UpdateCurrentTarget();
         }
     }
 
-    override protected void FixedUpdate()
+    protected override void FixedUpdate()
     {
         if (navMeshAgent.velocity.sqrMagnitude > 0f)
         {
-            anim.SetInteger("MovementMode", 2);
+            Animator.SetInteger(MovementMode, 2);
         }
         else
         {
-            anim.SetInteger("MovementMode", 0);
+            Animator.SetInteger(MovementMode, 0);
         }
     }
 
-    void UpdateCurrentTarget()
+    private void UpdateCurrentTarget()
     {
-        if (!(currentTargetIDamageable is null) && currentTargetIDamageable.IsDead)
+        if (currentTargetIDamageable.SelfOrNull() != null && currentTargetIDamageable.IsDead)
         {
-            enmitiesAgainstPlayers.Remove(currentTargetIDamageable.ID);
+            enmitiesAgainstPlayers.Remove(currentTargetIDamageable.Identifier);
 
-            recentTarget = currentTarget;
-            currentTarget = null;
+            RecentTarget = CurrentTarget;
+            CurrentTarget = null;
             currentTargetTransform = null;
             currentTargetIDamageable = null;
         }
 
-        if (hasEnmityListBeenUpdated && enmitiesAgainstPlayers.Count > 0)
-        {
-            currentTargetTransform = GAME.PlayersAlive[Utilities.GetMaxValuePair(enmitiesAgainstPlayers).Key];
-            recentTarget = currentTarget;
-            currentTarget = currentTargetTransform.gameObject;
+        if (!hasEnmityListBeenUpdated || enmitiesAgainstPlayers.Count <= 0)
+            return;
 
-            if (recentTarget == currentTarget)
-                return;
+        currentTargetTransform = gameManagerInstance.PlayersAlive[Utilities.GetMaxValuePair(enmitiesAgainstPlayers).Key];
+        RecentTarget = CurrentTarget;
+        CurrentTarget = currentTargetTransform.gameObject;
 
-            currentTargetIDamageable = currentTarget.GetComponent<IDamageable>();
+        if (RecentTarget == CurrentTarget)
+            return;
 
-            hasEnmityListBeenUpdated = false;
-        }
+        currentTargetIDamageable = CurrentTarget.GetComponent<IDamageable>();
+
+        hasEnmityListBeenUpdated = false;
     }
 
-    void UpdateStat()
+    private void UpdateStat()
     {
         if (IsDead) return;
 
@@ -380,16 +367,16 @@ public class Enemy : Character, IDamageable, IActable, ISelectable
 
     public Statistics GetStats()
     {
-        return stats;
+        return Stats;
     }
 
     public void UpdateStatBars()
     {
         if (IsDead) return;
 
-        if (stats[Stat.hP] > 0f)
+        if (Stats[Stat.HP] > 0f)
         {
-            enemyHPDisplay.UpdateHPBar(stats[Stat.hP], stats[Stat.maxHP]);
+            enemyHPDisplay.UpdateHPBar(Stats[Stat.HP], Stats[Stat.MaxHP]);
         }
         else
         {
@@ -400,48 +387,45 @@ public class Enemy : Character, IDamageable, IActable, ISelectable
 
     public void IncreaseStat(Stat stat, int increment, bool shouldShowHPChangeDigits, bool isChangingOverTime)
     {
-        stats[stat] += increment;
+        Stats[stat] += increment;
 
         switch (stat)
         {
-            case Stat.hP:
+            case Stat.HP:
                 {
-                    if (stats[stat] > stats[Stat.maxHP])
-                        stats[stat] = stats[Stat.maxHP];
+                    if (Stats[stat] > Stats[Stat.MaxHP])
+                        Stats[stat] = Stats[Stat.MaxHP];
                 }
                 break;
-            case Stat.mP:
+            case Stat.MP:
                 {
-                    if (stats[stat] > stats[Stat.maxMP])
-                        stats[stat] = stats[Stat.maxMP];
+                    if (Stats[stat] > Stats[Stat.MaxMP])
+                        Stats[stat] = Stats[Stat.MaxMP];
                 }
-                break;
-            default:
                 break;
         }
- 
     }
 
     public void DecreaseStat(Stat stat, int decrement, bool shouldShowHPChangeDigits, bool isChangingOverTime)
     {
-        stats[stat] -= decrement;
+        Stats[stat] -= decrement;
 
         switch (stat)
         {
-            case Stat.hP:
+            case Stat.HP:
                 {
-                    if (stats[stat] < 0)
+                    if (Stats[stat] < 0)
                     {
-                        stats[stat] = 0;
+                        Stats[stat] = 0;
                         if (!IsDead)
                         {
                             UpdateStatBars();
                             IsDead = true;
-                            GAME.EnemiesAlive.Remove(id);
-                            GAME.OnGameTick.RemoveListener(UpdateStat);
+                            gameManagerInstance.EnemiesAlive.Remove(Identifier);
+                            gameManagerInstance.onGameTick.RemoveListener(UpdateStat);
                             // StartCoroutine(EndGame());
                             enemyIStatChangeDisplay.RemoveAllDisplayingBuffs();
-                            state = EnemyState.dying;
+                            state = EnemyState.Dying;
                         }
                     }
 
@@ -456,15 +440,12 @@ public class Enemy : Character, IDamageable, IActable, ISelectable
                     UpdateStatBars();
                 }
                 break;
-            case Stat.mP:
+            case Stat.MP:
                 {
-                    if (stats[stat] < 0)
-                        stats[stat] = 0;
+                    if (Stats[stat] < 0)
+                        Stats[stat] = 0;
                 }
                 break;
-            default:
-                break;
         }
-
     }
 }

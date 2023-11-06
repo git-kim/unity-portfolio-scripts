@@ -6,38 +6,38 @@ using FluentBuilderPattern;
 public class CurseSpell : NonSelfTargetedAction
 {
     #region 버프/디버프 액션용 변수, 프로퍼티
-    public int buffID;
-    public bool IsBuffOn { get; protected set; } // 효과 적용 여부
-    public bool IsActionUnusable { get; protected set; } // 액션 취하기 가능 여부(효과 중복 적용 방지용)
-    public float EffectTime { get; protected set; } // 효과 적용 시간
+    private readonly int buffID;
+    private bool IsBuffOn { get; set; } // 효과 적용 여부
+    private bool IsActionUnusable { get; set; } // 액션 취하기 가능 여부(효과 중복 적용 방지용)
+    private float EffectTime { get; set; } // 효과 적용 시간
     #endregion
 
-    readonly IDamageable actorIDamageable;
-    IDamageable targetIDamageable;
-    IStatChangeDisplay targetIStatChangeDisplay;
-    Transform targetTransform;
+    private readonly IDamageable actorIDamageable;
+    private IDamageable targetIDamageable;
+    private IStatChangeDisplay targetIStatChangeDisplay;
+    private Transform targetTransform;
 
-    MonoBehaviour targetMonoBehaviour;
+    private MonoBehaviour targetMonoBehaviour;
 
-    readonly ParticleEffectName particleEffectName;
+    private readonly ParticleEffectName particleEffectName;
 
-    int mPCost;
-    float range;
+    private int mPCost;
+    private float range;
 
     public CurseSpell(GameObject actor, int buffID)
     {
         this.buffID = buffID;
-        EffectTime = GAME.Buffs[buffID].effectTime;
+        EffectTime = GameManagerInstance.Buffs[buffID].effectTime;
 
         IsBuffOn = false;
         // IsActionUnusable = false;
 
-        actorTransform = actor.transform;
-        actorMonoBehaviour = actor.GetComponent<MonoBehaviour>();
-        actorAnim = actor.GetComponent<Animator>();
-        actorIActable = actor.GetComponent<IActable>();
+        ActorTransform = actor.transform;
+        ActorMonoBehaviour = actor.GetComponent<MonoBehaviour>();
+        ActorAnimator = actor.GetComponent<Animator>();
+        ActorIActable = actor.GetComponent<IActable>();
         actorIDamageable = actor.GetComponent<IDamageable>();
-        actorStats = actorIActable.Stats;
+        ActorStats = ActorIActable.Stats;
 
         particleEffectName = ParticleEffectName.CurseDebuff;
     }
@@ -45,22 +45,22 @@ public class CurseSpell : NonSelfTargetedAction
     /// <summary>
     /// Execute 함수에서 호출되는 함수이다. toDirection이 Vector3.zero로 지정되면 회전 값이 변경되지 않는다.
     /// </summary>
-    IEnumerator TakeAction(int actionID, int actorID, ParticleEffectName particleEffectName, Transform targetTransform, Vector3 localPosition, Vector3 toDirection, Vector3 localScale, bool shouldEffectFollowTarget = true)
+    private IEnumerator TakeAction(int actionID, int actorID, ParticleEffectName particleEffectName, Transform targetTransform, Vector3 localPosition, Vector3 toDirection, Vector3 localScale, bool shouldEffectFollowTarget = true)
     {
-        actorAnim.SetInteger("ActionMode", actionID); // ActionMode에 actionID 값을 저장한다(애니메이션 시작).
-        actorIActable.ActionBeingTaken = actionID;
+        ActorAnimator.SetInteger(ActionMode, actionID); // ActionMode에 actionID 값을 저장한다(애니메이션 시작).
+        ActorIActable.ActionBeingTaken = actionID;
 
-        actorIActable.VisibleGlobalCoolDownTime = CoolDownTime;
-        actorIActable.InvisibleGlobalCoolDownTime = InvisibleGlobalCoolDownTime;
+        ActorIActable.VisibleGlobalCoolDownTime = CoolDownTime;
+        ActorIActable.InvisibleGlobalCoolDownTime = InvisibleGlobalCoolDownTime;
 
         IsActionUnusable = IsBuffOn = true;
         AfflictWithDebuff();
         targetIStatChangeDisplay.ShowBuffStart(buffID, EffectTime);
 
-        actorIDamageable.DecreaseStat(Stat.mP, mPCost, false, false);
+        actorIDamageable.DecreaseStat(Stat.MP, mPCost, false, false);
 
-        targetIDamageable.DecreaseStat(Stat.hP, Mathf.RoundToInt(actorStats[Stat.maxHP] * 0.004f), false);
-        targetIStatChangeDisplay.ShowHPChange(Mathf.RoundToInt(actorStats[Stat.maxHP] * 0.004f), true, in actionName);
+        targetIDamageable.DecreaseStat(Stat.HP, Mathf.RoundToInt(ActorStats[Stat.MaxHP] * 0.004f), false);
+        targetIStatChangeDisplay.ShowHPChange(Mathf.RoundToInt(ActorStats[Stat.MaxHP] * 0.004f), true, in ActionName);
         targetIDamageable.UpdateStatBars();
 
         if (targetIDamageable is Enemy enemy && !actorIDamageable.IsDead)
@@ -73,10 +73,10 @@ public class CurseSpell : NonSelfTargetedAction
 
         yield return new WaitForSeconds(InvisibleGlobalCoolDownTime);
 
-        if (actorAnim.GetInteger("ActionMode") == actionID)
-            actorAnim.SetInteger("ActionMode", 0); // ActionMode 값을 초기화한다.
+        if (ActorAnimator.GetInteger(ActionMode) == actionID)
+            ActorAnimator.SetInteger(ActionMode, 0); // ActionMode 값을 초기화한다.
 
-        actorIActable.ActionBeingTaken = 0;
+        ActorIActable.ActionBeingTaken = 0;
         IsActionUnusable = false;
 
         yield return new WaitForSeconds(EffectTime - InvisibleGlobalCoolDownTime);
@@ -88,36 +88,37 @@ public class CurseSpell : NonSelfTargetedAction
         IsBuffOn = false;
     }
 
-    override public void Execute(int actorID, GameObject target, ActionInfo actionInfo)
+    public override void Execute(int actorID, GameObject target, ActionInfo actionInfo)
     {
         if (IsActionUnusable)
             return;
 
         // MP 검사
-        if (mPCost > actorStats[Stat.mP])
+        if (mPCost > ActorStats[Stat.MP])
         {
-            GAME.ShowErrorMessage(0); // MP 부족 메시지 출력
+            GameManagerInstance.ShowErrorMessage(0); // MP 부족 메시지 출력
             return;
         }
 
         // 대상 검사
-        if (target is null)
+        if (target == null)
         {
-            GAME.ShowErrorMessage(3);
+            GameManagerInstance.ShowErrorMessage(3);
             return;
         }
 
-        this.target = target;
+        this.Target = target;
         targetTransform = target.transform;
         targetIDamageable = target.GetComponent<IDamageable>();
 
         // 추가 검사(대상, 사용자)
-        if (targetIDamageable is null || actorIDamageable.ID.Equals(targetIDamageable.ID))
+        if (targetIDamageable == null || actorIDamageable.Identifier.Equals(targetIDamageable.Identifier))
         {
-            GAME.ShowErrorMessage(2);
+            GameManagerInstance.ShowErrorMessage(2);
             return;
         }
-        else if (actorIDamageable.IsDead || targetIDamageable.IsDead)
+
+        if (actorIDamageable.IsDead || targetIDamageable.IsDead)
         {
             return;
         }
@@ -125,53 +126,53 @@ public class CurseSpell : NonSelfTargetedAction
         range = actionInfo.range;
 
         // 거리 검사
-        if (Vector3.SqrMagnitude(actorTransform.position - targetTransform.position) > range * range)
+        if (Vector3.SqrMagnitude(ActorTransform.position - targetTransform.position) > range * range)
         {
-            GAME.ShowErrorMessage(1); // 거리 초과 메시지 출력
+            GameManagerInstance.ShowErrorMessage(1); // 거리 초과 메시지 출력
             return;
         }
 
         CoolDownTime = actionInfo.coolDownTime;
         InvisibleGlobalCoolDownTime = actionInfo.invisibleGlobalCoolDownTime;
         mPCost = actionInfo.mPCost;
-        actionName = actionInfo.name;
+        ActionName = actionInfo.name;
         targetMonoBehaviour = target.GetComponent<MonoBehaviour>();
 
         if (targetMonoBehaviour is Enemy enemy)
             targetIStatChangeDisplay = enemy.EnemyIStatChangeDisplay;
 
         if (!IsBuffOn)
-            CurrentActionCoroutine = actorMonoBehaviour.StartCoroutine(TakeAction(actionInfo.id, actorID, particleEffectName, targetTransform, Vector3.up * (targetTransform.lossyScale.y - 1f), Vector3.zero, targetTransform.localScale));
+            CurrentActionCoroutine = ActorMonoBehaviour.StartCoroutine(TakeAction(actionInfo.id, actorID, particleEffectName, targetTransform, Vector3.up * (targetTransform.lossyScale.y - 1f), Vector3.zero, targetTransform.localScale));
         else
         {
-            if (!(CurrentActionCoroutine is null))
-                actorMonoBehaviour.StopCoroutine(CurrentActionCoroutine);
-            CurrentActionCoroutine = actorMonoBehaviour.StartCoroutine(TakeAction(actionInfo.id, actorID, particleEffectName, targetTransform, Vector3.up * (targetTransform.lossyScale.y - 1f), Vector3.zero, targetTransform.localScale));
+            if (!(CurrentActionCoroutine == null))
+                ActorMonoBehaviour.StopCoroutine(CurrentActionCoroutine);
+            CurrentActionCoroutine = ActorMonoBehaviour.StartCoroutine(TakeAction(actionInfo.id, actorID, particleEffectName, targetTransform, Vector3.up * (targetTransform.lossyScale.y - 1f), Vector3.zero, targetTransform.localScale));
         }
     }
 
-    override public void Stop()
+    public override void Stop()
     {
         if (!IsBuffOn) return;
 
-        if (!(CurrentActionCoroutine is null))
+        if (!(CurrentActionCoroutine == null))
         {
             IsBuffOn = false;
-            actorMonoBehaviour.StopCoroutine(CurrentActionCoroutine);
+            ActorMonoBehaviour.StopCoroutine(CurrentActionCoroutine);
             CurrentActionCoroutine = null;
         }
-        actorIActable.IsCasting = false;
+        ActorIActable.IsCasting = false;
     }
 
-    void AfflictWithDebuff()
+    private void AfflictWithDebuff()
     {
         if (!targetIDamageable.ActiveBuffEffects.ContainsKey(buffID))
         {
-            targetIDamageable.ActiveBuffEffects.Add(buffID, new KeyValuePair<Stat, int>(Stat.hP, 50));
+            targetIDamageable.ActiveBuffEffects.Add(buffID, new KeyValuePair<Stat, int>(Stat.HP, 50));
         }
     }
 
-    void RemoveDebuff()
+    private void RemoveDebuff()
     {
         targetIDamageable.ActiveBuffEffects.Remove(buffID);
     }

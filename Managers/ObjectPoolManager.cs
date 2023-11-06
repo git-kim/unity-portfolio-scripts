@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public class ObjectPoolManager : Singleton<ObjectPoolManager>
@@ -15,19 +14,19 @@ public class ObjectPoolManager : Singleton<ObjectPoolManager>
     }
 
     public List<ObjectPoolInfo> objectPoolInfoList;
-    public Dictionary<string, Queue<GameObject>> objectPoolDictionary;
+    private Dictionary<string, Queue<GameObject>> objectPoolDictionary;
 
-    void Start()
+    private void Start()
     {
         objectPoolDictionary = new Dictionary<string, Queue<GameObject>>();
 
-        foreach (ObjectPoolInfo objPoolInfo in objectPoolInfoList)
+        foreach (var objPoolInfo in objectPoolInfoList)
         {
-            Queue<GameObject> objPool = new Queue<GameObject>();
+            var objPool = new Queue<GameObject>();
 
-            for (int i = 0; i < objPoolInfo.size; i++)
+            for (var i = 0; i < objPoolInfo.size; i++)
             {
-                GameObject obj = Instantiate(objPoolInfo.prefab);
+                var obj = Instantiate(objPoolInfo.prefab);
                 obj.SetActive(false);
                 objPool.Enqueue(obj);
             }
@@ -44,7 +43,7 @@ public class ObjectPoolManager : Singleton<ObjectPoolManager>
             return null;
         }
 
-        Queue<GameObject> objQueue = objectPoolDictionary[objPoolName];
+        var objQueue = objectPoolDictionary[objPoolName];
 
         GameObject objToSpawn;
 
@@ -62,9 +61,9 @@ public class ObjectPoolManager : Singleton<ObjectPoolManager>
         objToSpawn.transform.position = pos;
         objToSpawn.transform.rotation = rot;
 
-        IPoolable pooledObj = objToSpawn.GetComponent<IPoolable>();
+        var pooledObj = objToSpawn.GetComponent<IPoolable>();
 
-        if (!(pooledObj is null))
+        if (pooledObj != null)
         {
             pooledObj.OnObjectSpawn();
         }

@@ -1,21 +1,18 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class EnemyHPDisplay : MonoBehaviour
 {
-    GameObject enemy;
-    Camera mainCamera;
-    Transform mainCameraTransform;
-    Transform enemyTransform;
-    Transform enemyHPDisplayTransform;
-    UIProgressBar enemyHPBar;
-    float enemyHeight;
-    float heightOnScreen;
-    Vector3 enemyHPDisplayInitialScale;
+    private GameObject enemy;
+    private Camera mainCamera;
+    private Transform mainCameraTransform;
+    private Transform enemyTransform;
+    private Transform enemyHPDisplayTransform;
+    private UIProgressBar enemyHPBar;
+    private float enemyHeight;
+    private float heightOnScreen;
+    private Vector3 enemyHPDisplayInitialScale;
 
-    void Start()
+    private void Start()
     {
         enemy = FindObjectOfType<Enemy>().gameObject;
         enemyHeight = enemy.GetComponent<CharacterController>().height;
@@ -24,14 +21,14 @@ public class EnemyHPDisplay : MonoBehaviour
         enemyHPBar = gameObject.GetComponent<UIProgressBar>();
 
         mainCamera = Camera.main;
-        mainCameraTransform = mainCamera.transform;
+        mainCameraTransform = mainCamera.SelfOrNull()?.transform;
 
         enemyHPDisplayInitialScale = enemyHPDisplayTransform.localScale; // 인스펙터로 지정된 로컬 스케일 값을 저장하여 둔다.
 
         heightOnScreen = 30f;
     }
 
-    void LateUpdate()
+    private void LateUpdate()
     {
         if (!enemy.activeSelf) return;
 
@@ -46,9 +43,9 @@ public class EnemyHPDisplay : MonoBehaviour
     /// <summary>
     /// 거리와 무관하게 화면에 일정한 크기로 HP 바가 출력되도록 로컬 스케일을 조절한다.
     /// </summary>
-    void ScaleHPBar()
+    private void ScaleHPBar()
     {
-        Vector3 tempPos = mainCamera.ScreenToWorldPoint(mainCamera.WorldToScreenPoint(enemyHPDisplayTransform.position) + Vector3.up * heightOnScreen);
+        var tempPos = mainCamera.ScreenToWorldPoint(mainCamera.WorldToScreenPoint(enemyHPDisplayTransform.position) + Vector3.up * heightOnScreen);
         enemyHPDisplayTransform.localScale = enemyHPDisplayInitialScale * (tempPos - enemyHPDisplayTransform.position).magnitude;
     }
 
@@ -57,7 +54,7 @@ public class EnemyHPDisplay : MonoBehaviour
         enemyHPBar.Set((float)currentHP / maxHP, false);
     }
 
-    void LookAtCamera()
+    private void LookAtCamera()
     {
         enemyHPDisplayTransform.rotation = mainCameraTransform.rotation;
         // 또는 enemyHPDisplayTransform.LookAt(enemyHPDisplayTransform.position + mainCamera.transform.rotation * Vector3.forward, mainCamera.transform.rotation * Vector3.up);

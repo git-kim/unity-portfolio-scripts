@@ -1,90 +1,88 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerBuffInfoDisplay : MonoBehaviour
 {
-    class BuffInfoObj
+    private class BuffInfoObj
     {
-        public int id;
-        public GameObject prefab;
-        public float time;
-        public UILabel timeLabel;
+        public readonly int ID;
+        public readonly GameObject Prefab;
+        public float Time;
+        public readonly UILabel TimeLabel;
 
         public BuffInfoObj(int id, GameObject prefab, UILabel timeLabel)
         {
-            this.id = id;
-            this.prefab = prefab;
-            this.timeLabel = timeLabel;
+            ID = id;
+            Prefab = prefab;
+            TimeLabel = timeLabel;
         }
     }
 
-    Player player;
-    BuffInfoList buffs;
-    readonly List<BuffInfoObj> currentActiveBuffs = new List<BuffInfoObj>();
-    readonly List<BuffInfoObj> availableBuffs = new List<BuffInfoObj>();
-    UIGrid displayGrid;
-    int maxDisplayableBuffs; // 리마인더: 버프 수가 많지 않아서 사용하지 않았다.
+    private Player player;
+    private BuffInfoList buffs;
+    private readonly List<BuffInfoObj> currentActiveBuffs = new List<BuffInfoObj>();
+    private readonly List<BuffInfoObj> availableBuffs = new List<BuffInfoObj>();
+    private UIGrid displayGrid;
+    private int maxDisplayableBuffs; // 리마인더: 버프 수가 많지 않아서 사용하지 않았다.
 
-    void Awake()
+    private void Awake()
     {
         displayGrid = gameObject.GetComponent<UIGrid>();
         maxDisplayableBuffs = displayGrid.maxPerLine;
     }
 
-    void Start()
+    private void Start()
     {
         player = FindObjectOfType<Player>();
         buffs = GameManager.Instance.Buffs;
 
         foreach (BuffInformationObject buff in buffs)
         {
-            GameObject prefab = Instantiate(buff.indicatorPrefab);
-            prefab.transform.SetParent(gameObject.transform, false);
+            var prefab = Instantiate(buff.indicatorPrefab, gameObject.transform, false);
             prefab.SetActive(false);
 
             availableBuffs.Add(new BuffInfoObj(buff.id, prefab, prefab.GetComponentInChildren<UILabel>()));
         }
     }
 
-    void FixedUpdate()
+    private void FixedUpdate()
     {
-        int listSize = currentActiveBuffs.Count;
+        var listSize = currentActiveBuffs.Count;
 
         if (listSize == 0) return;
         if (player.IsDead)
         {
-            foreach (BuffInfoObj buffInfoObj in currentActiveBuffs)
+            foreach (var buffInfoObj in currentActiveBuffs)
             {
-                buffInfoObj.prefab.SetActive(false);
+                buffInfoObj.Prefab.SetActive(false);
             }
             currentActiveBuffs.Clear();
 
             return;
         }
             
-        foreach (BuffInfoObj currentActiveBuff in currentActiveBuffs)
+        foreach (var currentActiveBuff in currentActiveBuffs)
         {
-            currentActiveBuff.time = Mathf.Max(currentActiveBuff.time - Time.deltaTime, 0f);
-            currentActiveBuff.timeLabel.text = (currentActiveBuff.time > 1f) ? currentActiveBuff.time.ToString("0") : currentActiveBuff.time.ToString("0.0");
+            currentActiveBuff.Time = Mathf.Max(currentActiveBuff.Time - Time.deltaTime, 0f);
+            currentActiveBuff.TimeLabel.text = (currentActiveBuff.Time > 1f) ? currentActiveBuff.Time.ToString("0") : currentActiveBuff.Time.ToString("0.0");
         }
     }
 
     public void AddBuffToDisplay(int buffID, float effectTime)
     {
-        int alreadyActiveIndex = currentActiveBuffs.FindIndex(element => element.id == buffID);
+        var alreadyActiveIndex = currentActiveBuffs.FindIndex(element => element.ID == buffID);
         if (alreadyActiveIndex != -1)
         {
-            currentActiveBuffs[alreadyActiveIndex].time = effectTime;
-            currentActiveBuffs[alreadyActiveIndex].timeLabel.text = effectTime.ToString();
+            currentActiveBuffs[alreadyActiveIndex].Time = effectTime;
+            currentActiveBuffs[alreadyActiveIndex].TimeLabel.text = effectTime.ToString();
         }
         else
         {
-            int notYetActiveIndex = availableBuffs.FindIndex(element => element.id == buffID);
-            BuffInfoObj buffInfoObj = availableBuffs[notYetActiveIndex];
-            buffInfoObj.time = effectTime;
-            buffInfoObj.timeLabel.text = effectTime.ToString();
-            buffInfoObj.prefab.SetActive(true);
+            var notYetActiveIndex = availableBuffs.FindIndex(element => element.ID == buffID);
+            var buffInfoObj = availableBuffs[notYetActiveIndex];
+            buffInfoObj.Time = effectTime;
+            buffInfoObj.TimeLabel.text = effectTime.ToString();
+            buffInfoObj.Prefab.SetActive(true);
             currentActiveBuffs.Add(buffInfoObj);
             displayGrid.Reposition();
         }
@@ -92,9 +90,9 @@ public class PlayerBuffInfoDisplay : MonoBehaviour
 
     public void RemoveDisplayingBuff(int buffID)
     {
-        foreach (BuffInfoObj buff in currentActiveBuffs.FindAll(element => element.id == buffID))
+        foreach (var buff in currentActiveBuffs.FindAll(element => element.ID == buffID))
         {
-            buff.prefab.SetActive(false);
+            buff.Prefab.SetActive(false);
             currentActiveBuffs.Remove(buff);
         }
 
@@ -103,11 +101,11 @@ public class PlayerBuffInfoDisplay : MonoBehaviour
 
     public void RemoveAllDisplayingBuffs()
     {
-        int listSize = currentActiveBuffs.Count;
+        var listSize = currentActiveBuffs.Count;
 
-        for (int i = listSize - 1; i >= 0; --i)
+        for (var i = listSize - 1; i >= 0; --i)
         {
-            currentActiveBuffs[i].prefab.SetActive(false);
+            currentActiveBuffs[i].Prefab.SetActive(false);
             currentActiveBuffs.RemoveAt(i);
         }
     }

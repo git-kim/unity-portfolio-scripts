@@ -1,9 +1,7 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
-abstract public class CastingBarDisplay : MonoBehaviour
+public abstract class CastingBarDisplay : MonoBehaviour
 {
-    abstract public void ShowCastingBar(int actionID, float castTime);
-    abstract public void StopShowingCastingBar();
+    public abstract void ShowCastingBar(int actionID, float castTime);
+    public abstract void StopShowingCastingBar();
 }

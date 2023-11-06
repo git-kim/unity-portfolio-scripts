@@ -1,22 +1,20 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class FireballSpawner : MonoBehaviour
 {
-    ObjectPoolManager OBJP;
-    Fireball spawnedFireball;
-    Transform trnsfrm;
+    private ObjectPoolManager objectPoolManagerInstance;
+    private Fireball spawnedFireball;
+    private Transform thisTransform;
 
     void Awake()
     {
-        OBJP = ObjectPoolManager.Instance;
-        trnsfrm = gameObject.transform;
+        objectPoolManagerInstance = ObjectPoolManager.Instance;
+        thisTransform = gameObject.transform;
     }
 
     public void SpawnFireball(GameObject target, int magicDamage, in string actionName)
     {
-        GameObject spawnedObject = OBJP.SpawnObjectFromPool("Fireball", trnsfrm.position, Quaternion.identity);
+        GameObject spawnedObject = objectPoolManagerInstance.SpawnObjectFromPool("Fireball", thisTransform.position, Quaternion.identity);
         spawnedFireball = spawnedObject.GetComponent<Fireball>();
         spawnedFireball.SetTarget(target);
         spawnedFireball.Fire(magicDamage, in actionName);

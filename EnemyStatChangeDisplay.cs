@@ -1,44 +1,42 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public class EnemyStatChangeDisplay : MonoBehaviour, IStatChangeDisplay
 {
-    BuffInfoList buffs;
+    private BuffInfoList buffs;
     //Actions enemyActionCommands;
-    ObjectPoolManager OBJP;
+    private ObjectPoolManager objectPoolManagerInstance;
 
-    readonly List<GameObject> buffEndObjInUse = new List<GameObject>();
-    readonly List<GameObject> buffStartObjInUse = new List<GameObject>();
-    readonly List<GameObject> hPDownObjInUse = new List<GameObject>();
-    readonly List<GameObject> hPDownOverTimeObjInUse = new List<GameObject>();
-    int listSize;
-    Transform enemyTransform;
-    Transform thisTransform;
-    Camera mainCamera, nGUICamera;
-    GameObject enemyObject;
-    Vector3 offsetVector;
-    Vector3 hPChangeObjectSpawnLocalPos;
-    Vector3 hPChangeOverTimeObjectSpawnLocalPos;
-    Vector3 buffOnObjectSpawnLocalPos;
-    Vector3 buffOffObjectSpawnLocalPos;
-    const float speed = 60f;
+    private readonly List<GameObject> buffEndObjInUse = new List<GameObject>();
+    private readonly List<GameObject> buffStartObjInUse = new List<GameObject>();
+    private readonly List<GameObject> hPDownObjInUse = new List<GameObject>();
+    private readonly List<GameObject> hPDownOverTimeObjInUse = new List<GameObject>();
+    private int listSize;
+    private Transform enemyTransform;
+    private Transform thisTransform;
+    private Camera mainCamera, nGUICamera;
+    private GameObject enemyObject;
+    private Vector3 offsetVector;
+    private Vector3 hPChangeObjectSpawnLocalPosition;
+    private Vector3 hPChangeOverTimeObjectSpawnLocalPosition;
+    private Vector3 buffOnObjectSpawnLocalPosition;
+    private Vector3 buffOffObjectSpawnLocalPosition;
+    private const float Speed = 60f;
 
-    void Awake()
+    private void Awake()
     {
-        OBJP = ObjectPoolManager.Instance;
+        objectPoolManagerInstance = ObjectPoolManager.Instance;
         thisTransform = gameObject.transform;
 
-        hPChangeObjectSpawnLocalPos = new Vector3(0f, 35f, 0f);
-        hPChangeOverTimeObjectSpawnLocalPos = new Vector3(0f, 20f, 0f);
-        buffOnObjectSpawnLocalPos = new Vector3(0f, 50f, 0f);
-        buffOffObjectSpawnLocalPos = new Vector3(0f, 50f, 0f);
+        hPChangeObjectSpawnLocalPosition = new Vector3(0f, 35f, 0f);
+        hPChangeOverTimeObjectSpawnLocalPosition = new Vector3(0f, 20f, 0f);
+        buffOnObjectSpawnLocalPosition = new Vector3(0f, 50f, 0f);
+        buffOffObjectSpawnLocalPosition = new Vector3(0f, 50f, 0f);
     }
 
-    void Start()
+    private void Start()
     {
-        Enemy enemy = FindObjectOfType<Enemy>();
+        var enemy = FindObjectOfType<Enemy>();
         enemyObject = enemy.gameObject;
         enemyTransform = enemy.transform;
         buffs = GameManager.Instance.Buffs;
@@ -50,16 +48,16 @@ public class EnemyStatChangeDisplay : MonoBehaviour, IStatChangeDisplay
 
     public void ShowBuffEnd(int buffID)
     {
-        GameObject obj = OBJP.SpawnObjectFromPool("BuffOffEnemy", Vector3.zero, Quaternion.identity, false);
+        var obj = objectPoolManagerInstance.SpawnObjectFromPool("BuffOffEnemy", Vector3.zero, Quaternion.identity, false);
         obj.transform.SetParent(gameObject.transform, false);
         obj.transform.localScale = Vector3.one;
-        obj.transform.localPosition = buffOffObjectSpawnLocalPos;
+        obj.transform.localPosition = buffOffObjectSpawnLocalPosition;
 
-        UISprite objSprite = obj.GetComponentInChildren<UISprite>(true);
+        var objSprite = obj.GetComponentInChildren<UISprite>(true);
         objSprite.spriteName = buffs[buffID].spriteName;
         objSprite.alpha = 1f;
 
-        UILabel objLabel = obj.GetComponentInChildren<UILabel>(true);
+        var objLabel = obj.GetComponentInChildren<UILabel>(true);
         objLabel.alpha = 1f;
         objLabel.text = "- " + buffs[buffID].buffName;
 
@@ -70,18 +68,18 @@ public class EnemyStatChangeDisplay : MonoBehaviour, IStatChangeDisplay
 
     public void ShowBuffStart(int buffID, float effectTime)
     {
-        GameObject obj = OBJP.SpawnObjectFromPool("DebuffOnEnemy", Vector3.zero, Quaternion.identity, false);
+        var obj = objectPoolManagerInstance.SpawnObjectFromPool("DebuffOnEnemy", Vector3.zero, Quaternion.identity, false);
         // 참고: BuffOnEnemy라는 prefab은 만들지 않았다.
 
         obj.transform.SetParent(gameObject.transform, false);
         obj.transform.localScale = Vector3.one;
-        obj.transform.localPosition = buffOnObjectSpawnLocalPos;
+        obj.transform.localPosition = buffOnObjectSpawnLocalPosition;
 
-        UISprite objSprite = obj.GetComponentInChildren<UISprite>(true);
+        var objSprite = obj.GetComponentInChildren<UISprite>(true);
         objSprite.spriteName = buffs[buffID].spriteName;
         objSprite.alpha = 1f;
 
-        UILabel objLabel = obj.GetComponentInChildren<UILabel>(true);
+        var objLabel = obj.GetComponentInChildren<UILabel>(true);
         objLabel.alpha = 1f;
         objLabel.text = "+ " + buffs[buffID].buffName;
 
@@ -95,18 +93,14 @@ public class EnemyStatChangeDisplay : MonoBehaviour, IStatChangeDisplay
         if (!isDecrement) return;
         // 참고: 회복 prefab은 만들지 않았다.
 
-        GameObject obj;
-
-        obj = OBJP.SpawnObjectFromPool("DamageEnemy", Vector3.zero, Quaternion.identity, false);
+        var obj = objectPoolManagerInstance.SpawnObjectFromPool("DamageEnemy", Vector3.zero, Quaternion.identity, false);
         obj.transform.SetParent(gameObject.transform, false);
         obj.transform.localScale = Vector3.one;
-        obj.transform.localPosition = hPChangeObjectSpawnLocalPos;
+        obj.transform.localPosition = hPChangeObjectSpawnLocalPosition;
 
-        UILabel[] objLabels = obj.GetComponentsInChildren<UILabel>(true);
+        var objLabels = obj.GetComponentsInChildren<UILabel>(true);
         objLabels[0].alpha = 1f;
-        if (!(actionName is null)) objLabels[0].text = actionName;
-        else objLabels[0].text = "";
-
+        objLabels[0].text = actionName ?? "";
         objLabels[1].alpha = 1f;
         objLabels[1].text = change.ToString();
 
@@ -120,14 +114,12 @@ public class EnemyStatChangeDisplay : MonoBehaviour, IStatChangeDisplay
         if (!isDecrement) return;
         // 참고: 회복 prefab은 만들지 않았다.
 
-        GameObject obj;
-
-        obj = OBJP.SpawnObjectFromPool("DamageOverTimeEnemy", Vector3.zero, Quaternion.identity, false);
+        var obj = objectPoolManagerInstance.SpawnObjectFromPool("DamageOverTimeEnemy", Vector3.zero, Quaternion.identity, false);
         obj.transform.SetParent(gameObject.transform, false);
         obj.transform.localScale = Vector3.one;
-        obj.transform.localPosition = hPChangeOverTimeObjectSpawnLocalPos;
+        obj.transform.localPosition = hPChangeOverTimeObjectSpawnLocalPosition;
 
-        UILabel objLabel = obj.GetComponentInChildren<UILabel>(true);
+        var objLabel = obj.GetComponentInChildren<UILabel>(true);
         objLabel.alpha = 1f;
         objLabel.text = change.ToString();
 
@@ -136,7 +128,7 @@ public class EnemyStatChangeDisplay : MonoBehaviour, IStatChangeDisplay
         obj.SetActive(true);
     }
 
-    void Update()
+    private void Update()
     {
         if (!enemyObject.activeSelf) return;
 
@@ -153,31 +145,30 @@ public class EnemyStatChangeDisplay : MonoBehaviour, IStatChangeDisplay
         // 리마인더: 구현하지 않았다.
     }
 
-    void UpdateList(List<GameObject> list, bool shouldMove)
+    private void UpdateList(List<GameObject> list, bool shouldMove)
     {
-        if (list.Count > 0)
+        if (list.Count <= 0)
+            return;
+
+        list.RemoveAll(obj => obj.activeSelf == false);
+
+        if (!shouldMove)
+            return;
+
+        listSize = list.Count;
+        if (listSize > 1)
         {
-            list.RemoveAll(obj => obj.activeSelf == false);
-
-
-            if (shouldMove)
+            for (var i = 1; i < listSize; ++i)
             {
-                listSize = list.Count;
-                if (listSize > 1)
-                {
-                    for (int i = 1; i < listSize; ++i)
-                    {
-                        float differenceY = list[i - 1].transform.localPosition.y - list[i].transform.localPosition.y;
-                        if (differenceY > 20f) continue;
-                        list[i - 1].transform.localPosition += Vector3.up * (20f - differenceY);
-                    }
-                }
-
-                foreach (GameObject obj in list)
-                {
-                    obj.transform.localPosition += Vector3.up * speed * Time.unscaledDeltaTime;
-                }
+                var differenceY = list[i - 1].transform.localPosition.y - list[i].transform.localPosition.y;
+                if (differenceY > 20f) continue;
+                list[i - 1].transform.localPosition += Vector3.up * (20f - differenceY);
             }
+        }
+
+        foreach (var obj in list)
+        {
+            obj.transform.localPosition += Vector3.up * (Speed * Time.unscaledDeltaTime);
         }
     }
 }

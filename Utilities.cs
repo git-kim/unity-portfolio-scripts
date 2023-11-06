@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Linq; // First
 
-static public class Utilities
+public static class Utilities
 {
-    static readonly float reciprocalOfPi = 1 / Mathf.PI;
+    private const float ReciprocalOfPi = 1f / Mathf.PI;
 
     /// <summary>
     /// 세 점이 이루는 quadratic Bézier curve에 맞는 점을 구한다.(선형 보간 대신 수식을 사용한다.)
@@ -14,7 +14,7 @@ static public class Utilities
     /// <param name="pos2">도착점</param>
     /// <param name="t">범위: 0(포함) ~ 1(포함)</param>
     /// <returns></returns>
-    static public Vector3 GetQuadraticBezierPoint(ref Vector3 pos0, ref Vector3 pos1, ref Vector3 pos2, float t)
+    public static Vector3 GetQuadraticBezierPoint(ref Vector3 pos0, ref Vector3 pos1, ref Vector3 pos2, float t)
     {
         // t = Mathf.Clamp(t, 0f, 1f);
         return Mathf.Pow((1f - t), 2f) * pos0 + 2f * (1f - t) * t * pos1 + Mathf.Pow(t, 2f) * pos2;
@@ -28,23 +28,34 @@ static public class Utilities
     /// <param name="minValue">범위 시작점 값(포함)</param>
     /// <param name="maxValue">범위 끝점 값(포함)</param>
     /// <returns></returns>
-    static public float GetRandomFloatFromSineDistribution(float minValue, float maxValue)
+    public static float GetRandomFloatFromSineDistribution(float minValue, float maxValue)
     {
         if (minValue > maxValue)
             (minValue, maxValue) = (maxValue, minValue);
 
-        return minValue + (maxValue - minValue) * reciprocalOfPi * Mathf.Acos(1 - 2 * Random.value);
+        return minValue + (maxValue - minValue) * ReciprocalOfPi * Mathf.Acos(1 - 2 * Random.value);
     }
 
-    public static KeyValuePair<K, V> GetMaxValuePair<K, V>(Dictionary<K, V> dictionary)
-        where V : System.IComparable
+    public static KeyValuePair<TK, TV> GetMaxValuePair<TK, TV>(Dictionary<TK, TV> dictionary)
+        where TV : System.IComparable
     {
-        KeyValuePair<K, V> maxKeyValuePair = dictionary.First();
-        foreach (KeyValuePair<K, V> keyValuePair in dictionary)
+        KeyValuePair<TK, TV> maxKeyValuePair = dictionary.First();
+        foreach (KeyValuePair<TK, TV> keyValuePair in dictionary)
         {
             if (keyValuePair.Value.CompareTo(maxKeyValuePair.Value) > 0)
                 maxKeyValuePair = keyValuePair;
         }
         return maxKeyValuePair;
+    }
+
+    public static T SelfOrNull<T>(this T target) where T : class
+    {
+        if (target is Object unityEngineTarget)
+        {
+            if (!unityEngineTarget)
+                return null;
+        }
+
+        return target;
     }
 }

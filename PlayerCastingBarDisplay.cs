@@ -1,22 +1,21 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System;
 using UnityEngine;
 using System.Linq;
 
 public class PlayerCastingBarDisplay : CastingBarDisplay
 {
-    IActable playerIActable;
-    ActionButtons actionButtons;
-    UIPanel castingBarPanel;
-    UISprite actionIconSprite, castingBarActionIconSprite;
-    UIProgressBar castingBar;
-    UILabel timeLabel;
-    TweenAlpha timeLabelTween;
-    bool shouldShowCastingBar = false;
-    public bool IsShown => castingBarPanel.alpha == 1f;
-    float castTime, remainingCastTime;
+    private IActable playerIActable;
+    private ActionButtons actionButtons;
+    private UIPanel castingBarPanel;
+    private UISprite actionIconSprite, castingBarActionIconSprite;
+    private UIProgressBar castingBar;
+    private UILabel timeLabel;
+    private TweenAlpha timeLabelTween;
+    private bool shouldShowCastingBar = false;
+    public bool IsShown => Math.Abs(castingBarPanel.alpha - 1f) < float.Epsilon;
+    private float castTime, remainingCastTime;
 
-    void Awake()
+    private void Awake()
     {
         foreach (UISprite sprite in gameObject.GetComponentsInChildren<UISprite>().Where(sprite => sprite.name.Contains("Icon")))
         {
@@ -30,14 +29,14 @@ public class PlayerCastingBarDisplay : CastingBarDisplay
         timeLabelTween = timeLabel.GetComponent<TweenAlpha>();
     }
 
-    void Start()
+    private void Start()
     {
         actionButtons = FindObjectOfType<ActionButtons>();
         playerIActable = FindObjectOfType<Player>().GetComponent<IActable>();
         castingBarPanel.alpha = 0f;
     }
 
-    override public void ShowCastingBar(int actionID, float castTime)
+    public override void ShowCastingBar(int actionID, float castTime)
     {
         actionIconSprite = actionButtons.GetActionIcon(actionID);
         castingBarActionIconSprite.spriteName = actionIconSprite.spriteName;
@@ -54,21 +53,21 @@ public class PlayerCastingBarDisplay : CastingBarDisplay
         castingBarPanel.alpha = 1f;
     }
 
-    override public void StopShowingCastingBar()
+    public override void StopShowingCastingBar()
     {
         timeLabel.text = "중단";
         timeLabelTween.enabled = true;
         timeLabelTween.PlayForward();
     }
 
-    public void HideCastingBar()
+    private void HideCastingBar()
     {
         castTime = 0f;
         shouldShowCastingBar = false;
         castingBarPanel.alpha = 0f;
     }
 
-    void Update()
+    private void Update()
     {
         if (!shouldShowCastingBar) return;
         if (!timeLabelTween.enabled)

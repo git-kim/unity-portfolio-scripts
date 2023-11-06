@@ -24,8 +24,7 @@ public class NonPooledParticleEffectManager : Singleton<NonPooledParticleEffectM
         [HideInInspector] public Transform prefabTransform;
     }
 
-
-    IEnumerator DisableAfterWaiting(float timeInSeconds, ParticleEffectInfo particleEffect)
+    private IEnumerator DisableAfterWaiting(float timeInSeconds, ParticleEffectInfo particleEffect)
     {
         yield return new WaitForSeconds(timeInSeconds);
         particleEffect.prefabTransform.SetParent(gameObject.transform, false);
@@ -34,11 +33,11 @@ public class NonPooledParticleEffectManager : Singleton<NonPooledParticleEffectM
 
     public List<ParticleEffectInfo> particleEffects = new List<ParticleEffectInfo>();
 
-    void Awake()
+    private void Awake()
     {
-        foreach (ParticleEffectInfo particleEffect in particleEffects)
+        foreach (var particleEffect in particleEffects)
         {
-            GameObject prefab = Instantiate(particleEffect.prefab); // 참고: 프리팹을 실체화하여야 SetParent를 호출할 수 있다.
+            var prefab = Instantiate(particleEffect.prefab); // 참고: 프리팹을 실체화하여야 SetParent를 호출할 수 있다.
             particleEffect.prefab = prefab;
             particleEffect.prefabParticleSystem = prefab.GetComponent<ParticleSystem>();
             particleEffect.prefabTransform = prefab.transform;
@@ -49,8 +48,8 @@ public class NonPooledParticleEffectManager : Singleton<NonPooledParticleEffectM
 
     public void PlayParticleEffect(ParticleEffectName name, Transform targetTransform, Vector3 localPosition, Vector3 toDirection, Vector3 localScale, float duration, bool shouldFollowTarget)
     {
-        int index = particleEffects.FindIndex(effect => effect.name == name);
-        ParticleEffectInfo effectToPlay = particleEffects[index];
+        var index = particleEffects.FindIndex(effect => effect.name == name);
+        var effectToPlay = particleEffects[index];
 
         if (shouldFollowTarget)
             effectToPlay.prefabTransform.SetParent(targetTransform, false);
