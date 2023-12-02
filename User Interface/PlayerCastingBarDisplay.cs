@@ -1,10 +1,11 @@
 ﻿using System;
 using UnityEngine;
 using System.Linq;
+using Characters.Handlers;
 
 public class PlayerCastingBarDisplay : CastingBarDisplay
 {
-    private IActable playerIActable;
+    private CharacterActionHandler playerActionHandler;
     private ActionButtons actionButtons;
     private UIPanel castingBarPanel;
     private UISprite actionIconSprite, castingBarActionIconSprite;
@@ -32,7 +33,7 @@ public class PlayerCastingBarDisplay : CastingBarDisplay
     private void Start()
     {
         actionButtons = FindObjectOfType<ActionButtons>();
-        playerIActable = FindObjectOfType<Player>().GetComponent<IActable>();
+        playerActionHandler = FindObjectOfType<Player>().GetComponent<CharacterActionHandler>();
         castingBarPanel.alpha = 0f;
     }
 
@@ -44,7 +45,7 @@ public class PlayerCastingBarDisplay : CastingBarDisplay
 
         this.castTime = remainingCastTime = castTime;
         castingBar.value = 1f;
-        timeLabel.text = playerIActable.VisibleGlobalCoolDownTime.ToString("0.0");
+        timeLabel.text = playerActionHandler.VisibleGlobalCoolDownTime.ToString("0.0");
 
         timeLabelTween.ResetToBeginning();
         timeLabelTween.enabled = false;
@@ -72,7 +73,7 @@ public class PlayerCastingBarDisplay : CastingBarDisplay
         if (!shouldShowCastingBar) return;
         if (!timeLabelTween.enabled)
         {
-            if (!playerIActable.IsCasting) // 주의: VisibleGlobalCoolDownTime이 0f인지로 판단하면 연속 액션 사용 시 실제 액션을 취하지는 않지만 캐스팅 바 값이 계속 변하는 버그가 발생할 수 있다.
+            if (!playerActionHandler.IsCasting)
             {
                 HideCastingBar();
             }
@@ -82,7 +83,7 @@ public class PlayerCastingBarDisplay : CastingBarDisplay
                 castingBar.value = (castTime - remainingCastTime) / castTime;
             }
 
-            timeLabel.text = playerIActable.VisibleGlobalCoolDownTime.ToString("0.0");
+            timeLabel.text = playerActionHandler.VisibleGlobalCoolDownTime.ToString("0.0");
         }
         else castingBar.value = 0f;
     }

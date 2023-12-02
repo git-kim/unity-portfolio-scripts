@@ -1,7 +1,8 @@
 ﻿using UnityEngine;
 using System.Collections;
+using Characters.Handlers;
 
-public class MPHealAbility : SelfBuffingAction
+public class ManaPointsHealingAbility : SelfBuffingAction
 {
     private readonly GameManager gameManagerInstance = GameManager.Instance;
 
@@ -13,7 +14,7 @@ public class MPHealAbility : SelfBuffingAction
 
     private readonly OffGlobalCoolDownActionButton button;
 
-    public MPHealAbility(GameObject actor, int buffID, OffGlobalCoolDownActionButton button, IStatChangeDisplay actorIStatChangeDisplay)
+    public ManaPointsHealingAbility(GameObject actor, int buffID, OffGlobalCoolDownActionButton button, IStatChangeDisplay actorIStatChangeDisplay)
     {
         BuffID = buffID;
         EffectTime = gameManagerInstance.Buffs[buffID].effectTime;
@@ -24,7 +25,7 @@ public class MPHealAbility : SelfBuffingAction
         ActorTransform = actor.transform;
         ActorMonoBehaviour = actor.GetComponent<MonoBehaviour>();
         ActorAnim = actor.GetComponent<Animator>();
-        ActorIActable = actor.GetComponent<IActable>();
+        ActorActionHandler = actor.GetComponent<CharacterActionHandler>();
         //actorIDamageable = actor.GetComponent<IDamageable>();
         //actorStats = actorIActable.Stats;
         ActorIStatChangeDisplay = actorIStatChangeDisplay;
@@ -43,9 +44,9 @@ public class MPHealAbility : SelfBuffingAction
         //    yield break;
 
         ActorAnim.SetInteger(ActionMode, actionID); // ActionMode에 actionID 값을 저장한다(애니메이션 시작).
-        ActorIActable.ActionBeingTaken = actionID;
+        ActorActionHandler.ActionBeingTaken = actionID;
 
-        ActorIActable.InvisibleGlobalCoolDownTime = InvisibleGlobalCoolDownTime;
+        ActorActionHandler.InvisibleGlobalCoolDownTime = InvisibleGlobalCoolDownTime;
 
         IsActionUnusable = IsBuffOn = true;
         button.StartCoolDown();
@@ -59,7 +60,7 @@ public class MPHealAbility : SelfBuffingAction
         if (ActorAnim.GetInteger(ActionMode) == actionID)
             ActorAnim.SetInteger(ActionMode, 0); // ActionMode 값을 초기화한다.
 
-        ActorIActable.ActionBeingTaken = 0;
+        ActorActionHandler.ActionBeingTaken = 0;
 
         yield return new WaitForSeconds(EffectTime - InvisibleGlobalCoolDownTime);
 
@@ -71,7 +72,7 @@ public class MPHealAbility : SelfBuffingAction
         IsActionUnusable = false;
     }
 
-    public override void Execute(int actorID, GameObject target, ActionInfo actionInfo)
+    public override void Execute(int actorID, GameObject target, CharacterAction actionInfo)
     {
         if (IsActionUnusable)
             return;
@@ -104,6 +105,6 @@ public class MPHealAbility : SelfBuffingAction
             CurrentActionCoroutine = null;
         }
 
-        ActorIActable.IsCasting = false;
+        ActorActionHandler.IsCasting = false;
     }
 }

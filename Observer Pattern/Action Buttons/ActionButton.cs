@@ -5,13 +5,11 @@ public abstract class ActionButton : MonoBehaviour, IObserver
 {
     public int actionID;
 
-    #region 클래스(하위 클래스 포함) 공유 변수
     protected static bool HasPlayerVariablesBeenSet = false;
     protected static Player Player;
-    protected static Actions PlayerActionCommands;
+    protected static CharacterActions PlayerActionCommands;
     protected static Color UsablenessColor = new Color(0x00 / 255f, 0x6D / 255f, 0xA4 / 255f);
     protected static Color UnusablenessColor = new Color(0xA4 / 255f, 0x00 / 255f, 0x03 / 255f);
-    #endregion
 
     protected void SetPlayerVariables()
     {
@@ -20,7 +18,7 @@ public abstract class ActionButton : MonoBehaviour, IObserver
 
         HasPlayerVariablesBeenSet = true;
         Player = FindObjectOfType<Player>();
-        PlayerActionCommands = Player.ActionCommands;
+        PlayerActionCommands = Player.CharacterActions;
     }
 
     // OnPress 트리거 발생 시 호출되는 함수

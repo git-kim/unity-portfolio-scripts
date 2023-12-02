@@ -1,9 +1,9 @@
 ﻿using System.Collections;
 using UnityEngine;
-using GameData;
-using Characters.Components;
+using Characters.Handlers;
+using UnityEngine.Events;
 
-public sealed partial class Player : Character, IActable
+public sealed partial class Player : Character
 {
     private static readonly int Dead = Animator.StringToHash("Dead");
     private static readonly int BattlePoseOn = Animator.StringToHash("Battle Pose On");
@@ -15,15 +15,14 @@ public sealed partial class Player : Character, IActable
     private static readonly int Idle2On = Animator.StringToHash("Idle2 On");
     private static readonly int LandMode = Animator.StringToHash("LandMode");
 
-    public bool IsDead => statChangeable.HasZeroHitPoints;
+    public bool IsDead => statChangeHandler.HasZeroHitPoints;
 
-    #region 코루틴
-    IEnumerator CannotMoveDuring(float time, System.Action voidCallback)
+    IEnumerator BlockMovementTemporarily(float timeInSeconds, UnityAction onEnd)
     {
         IsAbleToMove = false;
-        yield return new WaitForSeconds(time);
+        yield return new WaitForSeconds(timeInSeconds);
         IsAbleToMove = true;
-        voidCallback?.Invoke(); // voidFunction이 null이 아니면 voidFunction을 호출한다.
+        onEnd?.Invoke();
     }
 
     IEnumerator EndGame()
@@ -38,11 +37,10 @@ public sealed partial class Player : Character, IActable
 
         gameManagerInstance.State = GameState.Over;
     }
-    #endregion
 
     protected override void FixedUpdate()
     {
-        if (gameManagerInstance.State == GameState.Over || statChangeable.HasZeroHitPoints)
+        if (gameManagerInstance.State == GameState.Over || statChangeHandler.HasZeroHitPoints)
             return;
 
         UpdateGlobalCoolDownTime();
@@ -50,7 +48,7 @@ public sealed partial class Player : Character, IActable
         // 오디오 리스너 회전 갱신(카메라가 보는 방향을 보도록)
         audioListenerTransform.rotation = Quaternion.LookRotation(audioListenerTransform.position - mainCameraTransform.position);
 
-        UpdateSqrDistanceFromCurrentTarget(out sqrDistanceFromCurrentTarget);
+        UpdateSqrDistanceFromCurrentTarget();
 
         if (!gameManagerInstance.IsInBattle && Animator.GetBool(BattlePoseOn) && timeToTurnOffBattleMode > 0f)
         {
@@ -64,17 +62,19 @@ public sealed partial class Player : Character, IActable
         }
     }
 
-    private void UpdateSqrDistanceFromCurrentTarget(out float sqrDistanceFromCurrentTarget)
+    private void UpdateSqrDistanceFromCurrentTarget()
     {
-        sqrDistanceFromCurrentTarget =
-            (CurrentTarget == null) ? 0f : Vector3.SqrMagnitude(playerTransform.position - CurrentTarget.transform.position);
+        var value
+            = characterActionHandler.SqrDistanceFromCurrentTarget
+            = (CurrentTarget == null) ?
+            0f : Vector3.SqrMagnitude(playerTransform.position - CurrentTarget.transform.position);
 
-        if (sqrDistanceFromCurrentTarget > 1600f && !(CurrentTarget == null)) // 선택 중인 대상과 떨어진 거리가 40f를 초과하면
+        if (value > 1600f && !(CurrentTarget == null)) // 선택 중인 대상과 떨어진 거리가 40f를 초과하면
         {
             DeselectTarget();
         }
 
-        if (CurrentTarget != null && currentTargetStatChangeable.HasZeroHitPoints)
+        if (CurrentTarget != null && currentTargetStatChangeHandler.HasZeroHitPoints)
         {
             DeselectTarget();
         }
@@ -84,12 +84,12 @@ public sealed partial class Player : Character, IActable
 
     protected override void Update()
     {
-        if (gameManagerInstance.State != GameState.Over && !statChangeable.HasZeroHitPoints)
+        if (gameManagerInstance.State != GameState.Over && !statChangeHandler.HasZeroHitPoints)
             ChangePoseIfApplicable();
 
         Locomote();
 
-        if (gameManagerInstance.State != GameState.Over && !statChangeable.HasZeroHitPoints)
+        if (gameManagerInstance.State != GameState.Over && !statChangeHandler.HasZeroHitPoints)
             Act();
     }
 
@@ -101,9 +101,9 @@ public sealed partial class Player : Character, IActable
         if (recentActionInput > 0)
         {
             if (VisibleGlobalCoolDownTime < 1f
-                || (!IsCasting && actionCommands[recentActionInput].canIgnoreVisibleGlobalCoolDownTime))
+                || (!IsCasting && CharacterActions[recentActionInput].canIgnoreVisibleGlobalCoolDownTime))
             {
-                ActionToTake = recentActionInput; // 액션 예약
+                characterActionHandler.ActionToTake = recentActionInput; // 액션 예약
                 RecentTarget = CurrentTarget; // 현재 선택 대상 저장
             }
         }
@@ -117,20 +117,24 @@ public sealed partial class Player : Character, IActable
                 StopTakingAction(); // 캐스팅 액션 중단
                 RemoveActionToTake(); // 액션 예약 취소
             }
-            else if (actionCommands[ActionToTake].castTime > 0f)
+            else if (CharacterActions[characterActionHandler.ActionToTake].castTime > 0f)
                 RemoveActionToTake(); // 캐스팅 액션 예약 취소
         }
 
-        if (ActionToTake != 0 && ActionBeingTaken == 0 && InvisibleGlobalCoolDownTime == 0f
-            && (VisibleGlobalCoolDownTime == 0f || actionCommands[ActionToTake].canIgnoreVisibleGlobalCoolDownTime))
+        if (characterActionHandler.ActionToTake != 0
+            && characterActionHandler.ActionBeingTaken == 0
+            && characterActionHandler.InvisibleGlobalCoolDownTime == 0f
+            && (VisibleGlobalCoolDownTime == 0f
+            || CharacterActions[characterActionHandler.ActionToTake].canIgnoreVisibleGlobalCoolDownTime))
         {
             if (!(RecentTarget == null) && CheckIfActionAffectsTarget() && CheckIfPlayerIsNotLookingAtTarget())
             {
                 MakePlayerLookAtTarget();
             }
 
-            actionCommands[ActionToTake].actionCommand.Execute(Identifier, RecentTarget, actionCommands[ActionToTake]); // 액션 취하기
-            ActionToTake = 0;
+            CharacterActions[characterActionHandler.ActionToTake].actionCommand
+                .Execute(Identifier, RecentTarget, CharacterActions[characterActionHandler.ActionToTake]);
+            characterActionHandler.ActionToTake = 0;
         }
     }
 
@@ -140,7 +144,7 @@ public sealed partial class Player : Character, IActable
     /// <returns></returns>
     private bool CheckIfActionAffectsTarget()
     {
-        return (actionCommands[ActionToTake].targetType == ActionTargetType.NonSelf);
+        return (CharacterActions[characterActionHandler.ActionToTake].targetType == CharacterActionTargetType.NonSelf);
     }
 
     /// <summary>
@@ -190,8 +194,8 @@ public sealed partial class Player : Character, IActable
     /// </summary>
     private void Locomote()
     {
-        if (!statChangeable.HasZeroHitPoints)
-            GetMovementDirection();
+        if (!IsDead)
+            SetVelocityForDesiredDirection();
 
         bool hasBeenInTheAir = Animator.GetBool(InTheAir);
 
@@ -199,14 +203,14 @@ public sealed partial class Player : Character, IActable
 
         if (hasBeenInTheAir)
         {
-            if (IsNotInTheAir && !statChangeable.HasZeroHitPoints)
+            if (IsNotInTheAir && !IsDead)
                 onLand.Invoke(); // 착지 시작
         }
         else
         {
             if (IsNotInTheAir)
             {
-                if (keyManagerInstance.Jump && IsAbleToMove && !statChangeable.HasZeroHitPoints)
+                if (keyManagerInstance.Jump && IsAbleToMove && !IsDead)
                 {
                     onJumpUp.Invoke(); // 도약 시작
                 }
@@ -219,7 +223,7 @@ public sealed partial class Player : Character, IActable
                     CalculateLocomotionSpeed();
                 }
             }
-            else if  (!statChangeable.HasZeroHitPoints)
+            else if  (!IsDead)
             {
                 if (Animator.GetFloat(YSpeed) <= -2f)
                     onFall.Invoke(); // 낙하 시작
@@ -288,8 +292,12 @@ public sealed partial class Player : Character, IActable
     /// </summary>
     private void UpdateGlobalCoolDownTime()
     {
-        if (VisibleGlobalCoolDownTime > 0f) VisibleGlobalCoolDownTime = Mathf.Max(VisibleGlobalCoolDownTime - Time.deltaTime, 0f);
-        if (InvisibleGlobalCoolDownTime > 0f) InvisibleGlobalCoolDownTime = Mathf.Max(InvisibleGlobalCoolDownTime - Time.deltaTime, 0f);
+        if (VisibleGlobalCoolDownTime > 0f)
+            characterActionHandler.VisibleGlobalCoolDownTime =
+                Mathf.Max(VisibleGlobalCoolDownTime - Time.deltaTime, 0f);
+        if (characterActionHandler.InvisibleGlobalCoolDownTime > 0f)
+            characterActionHandler.InvisibleGlobalCoolDownTime =
+                Mathf.Max(characterActionHandler.InvisibleGlobalCoolDownTime - Time.deltaTime, 0f);
 
         onUpdateVisibleGlobalCoolTime.Invoke();
     }
@@ -329,7 +337,7 @@ public sealed partial class Player : Character, IActable
     /// <summary>
     /// 플레이어 캐릭터가 움직일 방향을 메인 카메라가 보는 방향을 기준으로 구한다.
     /// </summary>
-    void GetMovementDirection()
+    void SetVelocityForDesiredDirection()
     {
         Velocity.x = keyManagerInstance.H;
         Velocity.y = 0f;
@@ -358,7 +366,7 @@ public sealed partial class Player : Character, IActable
         isNotInTheAir =
             gameManagerInstance.CheckCylinder(GroundCheckerPos - new Vector3(0f, GroundCheckStartY, 0f), GroundCheckerPos + new Vector3(0f, 0.05f, 0f), Controller.radius * 0.5f, 1 << 9, QueryTriggerInteraction.Ignore);
         // 참고: 상자로만 검사할 때에는 Physics.CheckBox(groundChecker.position, new Vector3(0.03f, 0.05f, 0.03f), Quaternion.identity, 1 << 9, QueryTriggerInteraction.Ignore);
-        // 참고: 우변에 (cC.collisionFlags & CollisionFlags.Below) != 0;을 사용할 수도 있겠으나 cC는 캡슐 형태 콜라이더이므로 땅 모서리에서 부정확하다.
+        // 참고: 우변에 (Controller.collisionFlags & CollisionFlags.Below) != 0;을 사용할 수도 있겠으나 Controller는 캡슐 형태 콜라이더이므로 땅 모서리에서 부정확하다.
     }
 
     /// <summary>
@@ -366,15 +374,15 @@ public sealed partial class Player : Character, IActable
     /// </summary>
     void StopTakingAction()
     {
-        if (ActionBeingTaken > 0)
-            actionCommands[ActionBeingTaken].actionCommand.Stop();
+        if (characterActionHandler.ActionBeingTaken > 0)
+            CharacterActions[characterActionHandler.ActionBeingTaken].actionCommand.Stop();
 
-        InvisibleGlobalCoolDownTime = 0.5f;
+        characterActionHandler.InvisibleGlobalCoolDownTime = 0.5f;
     }
 
     void RemoveActionToTake()
     {
-        ActionToTake = 0;
+        characterActionHandler.ActionToTake = 0;
         RecentTarget = null;
     }
 
@@ -397,7 +405,7 @@ public sealed partial class Player : Character, IActable
         if (Animator.GetFloat(YSpeed) < -2.5f)
         {
             Animator.SetInteger(LandMode, 1);
-            landCoroutine = StartCoroutine(CannotMoveDuring(0.22f, () => { playerFeetIK.EnableFeetIK(); }));
+            landCoroutine = StartCoroutine(BlockMovementTemporarily(0.22f, () => { playerFeetIK.EnableFeetIK(); }));
 
             Animator.SetFloat(YSpeed, 0f);
             Animator.SetBool(InTheAir, false);
@@ -427,8 +435,8 @@ public sealed partial class Player : Character, IActable
 
     public void SelectTarget(GameObject gO)
     {
-        currentTargetStatChangeable = gO.GetComponent<StatChangeable>();
-        if (currentTargetStatChangeable.HasZeroHitPoints)
+        currentTargetStatChangeHandler = gO.GetComponent<StatChangeHandler>();
+        if (currentTargetStatChangeHandler.HasZeroHitPoints)
             return;
 
         CurrentTarget = gO;
@@ -444,6 +452,6 @@ public sealed partial class Player : Character, IActable
         currentTargetISelectable.TargetIndicator.Disable();
         CurrentTarget = null;
         currentTargetISelectable = null;
-        currentTargetStatChangeable = null;
+        currentTargetStatChangeHandler = null;
     }
 }

@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
+using Characters.Handlers;
 
 public class SprintAbility : SelfBuffingAction
 {
@@ -17,7 +18,7 @@ public class SprintAbility : SelfBuffingAction
         ActorTransform = actor.transform;
         ActorMonoBehaviour = actor.GetComponent<MonoBehaviour>();
         ActorAnim = actor.GetComponent<Animator>();
-        ActorIActable = actor.GetComponent<IActable>();
+        ActorActionHandler = actor.GetComponent<CharacterActionHandler>();
         ActorIStatChangeDisplay = actorIStatChangeDisplay;
 
         this.button = button;
@@ -30,7 +31,7 @@ public class SprintAbility : SelfBuffingAction
     /// </summary>
     private IEnumerator TakeAction(int actionID, ParticleEffectName particleEffectName, Vector3 localPosition, Vector3 toDirection, Vector3 localScale, bool shouldEffectFollowTarget = true)
     {
-        ActorIActable.InvisibleGlobalCoolDownTime = InvisibleGlobalCoolDownTime;
+        ActorActionHandler.InvisibleGlobalCoolDownTime = InvisibleGlobalCoolDownTime;
 
         IsActionUnusable = IsBuffOn = true;
 
@@ -43,7 +44,7 @@ public class SprintAbility : SelfBuffingAction
 
         yield return new WaitForSeconds(InvisibleGlobalCoolDownTime);
 
-        ActorIActable.ActionBeingTaken = 0;
+        ActorActionHandler.ActionBeingTaken = 0;
 
         yield return new WaitForSeconds(EffectTime - InvisibleGlobalCoolDownTime);
 
@@ -55,7 +56,7 @@ public class SprintAbility : SelfBuffingAction
         IsActionUnusable = false;
     }
 
-    public override void Execute(int actorID, GameObject target, ActionInfo actionInfo)
+    public override void Execute(int actorID, GameObject target, CharacterAction actionInfo)
     {
         if (IsActionUnusable)
             return;

@@ -1,21 +1,21 @@
 ﻿using UnityEngine;
 using GameData;
 using System.Collections;
-using Characters.Components;
+using Characters.Handlers;
 
 public class FireballSpell : NonSelfTargetedAction
 {
     private readonly FireballSpawner fireballSpawner;
-    private readonly StatChangeable actorStatChangeable;
-    private StatChangeable targetStatChangeable;
+    private readonly StatChangeHandler actorStatChangeHandler;
+    private StatChangeHandler targetStatChangeHandler;
     private int actionID;
     private int mPCost;
     private float range;
 
     public FireballSpell(GameObject actor)
     {
-        actorStatChangeable = actor.GetComponent<StatChangeable>();
-        if (actorStatChangeable.SelfOrNull() == null)
+        actorStatChangeHandler = actor.GetComponent<StatChangeHandler>();
+        if (actorStatChangeHandler.SelfOrNull() == null)
             Debug.LogError(GetType().Name + " 사용 객체에 IDamageable이 존재하지 않습니다.");
 
         fireballSpawner = actor.GetComponentInChildren<FireballSpawner>();
@@ -23,9 +23,9 @@ public class FireballSpell : NonSelfTargetedAction
             Debug.LogError(GetType().Name + " 사용 객체에 FireballSpawner가 존재하지 않습니다.");
 
         ActorMonoBehaviour = actor.GetComponent<MonoBehaviour>();
-        ActorIActable = actor.GetComponent<IActable>();
+        ActorActionHandler = actor.GetComponent<CharacterActionHandler>();
         ActorAnimator = actor.GetComponent<Animator>();
-        ActorStats = ActorIActable.Stats;
+        ActorStats = ActorActionHandler.Stats;
         ActorTransform = actor.transform;
     }
 
@@ -40,26 +40,26 @@ public class FireballSpell : NonSelfTargetedAction
         }
 
         ActorAnimator.SetInteger(ActionMode, actionID); // ActionMode에 actionID 값을 저장한다(애니메이션 시작).
-        ActorIActable.ActionBeingTaken = actionID;
+        ActorActionHandler.ActionBeingTaken = actionID;
 
-        ActionName = ActorIActable.ActionCommands[actionID].name;
+        ActionName = ActorActionHandler.CharacterActions[actionID].name;
 
-        ActorIActable.VisibleGlobalCoolDownTime = CoolDownTime;
-        ActorIActable.InvisibleGlobalCoolDownTime = InvisibleGlobalCoolDownTime;
+        ActorActionHandler.VisibleGlobalCoolDownTime = CoolDownTime;
+        ActorActionHandler.InvisibleGlobalCoolDownTime = InvisibleGlobalCoolDownTime;
 
-        ActorIActable.CastingBarDisplay.SelfOrNull()?.ShowCastingBar(actionID, CastTime);
-        ActorIActable.IsCasting = true;
+        ActorActionHandler.CastingBarDisplay.SelfOrNull()?.ShowCastingBar(actionID, CastTime);
+        ActorActionHandler.IsCasting = true;
 
         yield return new WaitForSeconds(CastTime);
 
-        ActorIActable.IsCasting = false;
-        if (!actorStatChangeable.HasZeroHitPoints && !targetStatChangeable.HasZeroHitPoints)
+        ActorActionHandler.IsCasting = false;
+        if (!actorStatChangeHandler.HasZeroHitPoints && !targetStatChangeHandler.HasZeroHitPoints)
         {
             fireballSpawner.SpawnFireball(Target, ActorStats[Stat.MagicAttack], in ActionName);
-            actorStatChangeable.DecreaseStat(Stat.ManaPoints, mPCost);
+            actorStatChangeHandler.DecreaseStat(Stat.ManaPoints, mPCost);
 
-            if (targetStatChangeable.TryGetComponent<Enemy>(out var enemy)
-                && !actorStatChangeable.HasZeroHitPoints)
+            if (targetStatChangeHandler.TryGetComponent<Enemy>(out var enemy)
+                && !actorStatChangeHandler.HasZeroHitPoints)
             {
                 enemy.IncreaseEnmity(actorID, 2);
             }
@@ -69,13 +69,13 @@ public class FireballSpell : NonSelfTargetedAction
         if (ActorAnimator.GetInteger(ActionMode) == actionID)
             ActorAnimator.SetInteger(ActionMode, 0);
 
-        ActorIActable.ActionBeingTaken = 0;
+        ActorActionHandler.ActionBeingTaken = 0;
     }
 
 
-    public override void Execute(int actorID, GameObject target, ActionInfo actionInfo)
+    public override void Execute(int actorID, GameObject target, CharacterAction actionInfo)
     {
-        mPCost = actionInfo.mPCost;
+        mPCost = actionInfo.manaPointsCost;
 
         // Check Mana Points
         if (mPCost > ActorStats[Stat.ManaPoints])
@@ -92,16 +92,16 @@ public class FireballSpell : NonSelfTargetedAction
         }
 
         Target = target;
-        targetStatChangeable = target.GetComponent<StatChangeable>();
+        targetStatChangeHandler = target.GetComponent<StatChangeHandler>();
 
         // Check Others
-        if (!targetStatChangeable || actorStatChangeable.Identifier.Equals(targetStatChangeable.Identifier))
+        if (!targetStatChangeHandler || actorStatChangeHandler.Identifier.Equals(targetStatChangeHandler.Identifier))
         {
             GameManagerInstance.ShowErrorMessage(2);
             return;
         }
 
-        if (actorStatChangeable.HasZeroHitPoints || targetStatChangeable.HasZeroHitPoints)
+        if (actorStatChangeHandler.HasZeroHitPoints || targetStatChangeHandler.HasZeroHitPoints)
         {
             return;
         }
@@ -125,11 +125,11 @@ public class FireballSpell : NonSelfTargetedAction
         }
 
         // ActorIActable.ActionToTake = 0;
-        ActorIActable.ActionBeingTaken = 0;
-        ActorIActable.VisibleGlobalCoolDownTime = 0f;
-        ActorIActable.InvisibleGlobalCoolDownTime = 0f;
-        ActorIActable.IsCasting = false;
+        ActorActionHandler.ActionBeingTaken = 0;
+        ActorActionHandler.VisibleGlobalCoolDownTime = 0f;
+        ActorActionHandler.InvisibleGlobalCoolDownTime = 0f;
+        ActorActionHandler.IsCasting = false;
 
-        ActorIActable.CastingBarDisplay.SelfOrNull()?.StopShowingCastingBar();
+        ActorActionHandler.CastingBarDisplay.SelfOrNull()?.StopShowingCastingBar();
     }
 }

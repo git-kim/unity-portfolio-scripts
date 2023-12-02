@@ -1,7 +1,7 @@
 ﻿using System.Collections;
 using UnityEngine;
 using GameData;
-using Characters.Components;
+using Characters.Handlers;
 
 public class Fireball : MonoBehaviour, IPoolable
 {
@@ -21,7 +21,7 @@ public class Fireball : MonoBehaviour, IPoolable
     private float currentTravelTime;
     private bool hasArrived = false;
 
-    private StatChangeable targetStatChangeable;
+    private StatChangeHandler targetStatChangeHandler;
     private int damageToTarget;
 
     private ParticleSystem muzzleParticleSystem, impactParticleSystem;
@@ -78,7 +78,7 @@ public class Fireball : MonoBehaviour, IPoolable
         targetController = target.GetComponent<CharacterController>();
 
         // targetStats = target.GetComponent<IActable>().GetStats();
-        targetStatChangeable = target.GetComponent<StatChangeable>();
+        targetStatChangeHandler = target.GetComponent<StatChangeHandler>();
 
         if (targetController == null)
             Debug.LogError("Target CharacterController not found.");
@@ -134,13 +134,13 @@ public class Fireball : MonoBehaviour, IPoolable
         impactParticleSystem.Simulate(0.0f, true, true);
         impactParticle.SetActive(true);
 
-        if (targetStatChangeable)
+        if (targetStatChangeHandler)
         {
             var effectiveDamage =
-                targetStatChangeable.GetEffectiveDamage(damageToTarget, false,
+                targetStatChangeHandler.GetEffectiveDamage(damageToTarget, false,
                 Utilities.GetRandomFloatFromSineDistribution(0.96f, 1.04f));
-            targetStatChangeable.DecreaseStat(Stat.HitPoints, effectiveDamage);
-            targetStatChangeable.ShowHitPointsChange(effectiveDamage, true, actionName);
+            targetStatChangeHandler.DecreaseStat(Stat.HitPoints, effectiveDamage);
+            targetStatChangeHandler.ShowHitPointsChange(effectiveDamage, true, actionName);
         }
 
         StartCoroutine(DisableAfterWaiting(impactEffectLifetime, impactParticle));

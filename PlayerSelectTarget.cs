@@ -22,14 +22,14 @@ public class PlayerSelectTarget : MonoBehaviour
 
         ray = mainCamera.ScreenPointToRay(Input.mousePosition);
 
-        if (UICamera.Raycast(Input.mousePosition)) // NGUI 객체가 선택되었을 때
+        if (UICamera.Raycast(Input.mousePosition)) // NGUI
         {
             return;
         }
 
-        if (Physics.SphereCast(ray, 0.8f, out hit, 34f, 1 << 11)) // 11번 레이어: Enemy
+        if (Physics.SphereCast(ray, 0.8f, out hit, 34f, 1 << 11)) // 11: Enemy
         {
-            if (Physics.Raycast(ray, hit.distance, 1 << 9)) // 9번 레이어: Ground
+            if (Physics.Raycast(ray, hit.distance, 1 << 9)) // 9: Ground
             {
                 return;
             }

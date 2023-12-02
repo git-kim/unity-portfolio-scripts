@@ -1,33 +1,32 @@
 ﻿using UnityEngine;
 using System.Collections;
 using GameData;
-using Characters.Components;
+using Characters.Handlers;
 
-public class HPHealAbility : SelfBuffingAction
+public class HitPointsHealingAbility : SelfBuffingAction
 {
     private readonly GameManager gameManagerInstance = GameManager.Instance;
     private int manaPointsCost;
     private readonly Statistics actorStats;
-    private readonly StatChangeable actorStatChangeable;
+    private readonly StatChangeHandler actorStatChangeHandler;
 
     private string actionName;
 
     private float InvisibleGlobalCoolDownTime { get; set; }
 
-    public HPHealAbility(GameObject actor, int buffID, IStatChangeDisplay actorIStatChangeDisplay)
+    public HitPointsHealingAbility(GameObject actor, int buffID, IStatChangeDisplay actorIStatChangeDisplay)
     {
         BuffID = buffID;
         EffectTime = gameManagerInstance.Buffs[buffID].effectTime;
 
         IsBuffOn = false;
-        // IsActionUnusable = false;
 
         ActorTransform = actor.transform;
         ActorMonoBehaviour = actor.GetComponent<MonoBehaviour>();
         ActorAnim = actor.GetComponent<Animator>();
-        ActorIActable = actor.GetComponent<IActable>();
-        actorStatChangeable = actor.GetComponent<StatChangeable>();
-        actorStats = ActorIActable.Stats;
+        ActorActionHandler = actor.GetComponent<CharacterActionHandler>();
+        actorStatChangeHandler = actor.GetComponent<StatChangeHandler>();
+        actorStats = ActorActionHandler.Stats;
         this.ActorIStatChangeDisplay = actorIStatChangeDisplay;
 
         ParticleEffectName = ParticleEffectName.HealHP;
@@ -39,18 +38,18 @@ public class HPHealAbility : SelfBuffingAction
     {
         ActorAnim.SetInteger(ActionMode, actionID);
 
-        ActorIActable.ActionBeingTaken = actionID;
+        ActorActionHandler.ActionBeingTaken = actionID;
 
-        ActorIActable.VisibleGlobalCoolDownTime = CoolDownTime;
-        ActorIActable.InvisibleGlobalCoolDownTime = InvisibleGlobalCoolDownTime;
+        ActorActionHandler.VisibleGlobalCoolDownTime = CoolDownTime;
+        ActorActionHandler.InvisibleGlobalCoolDownTime = InvisibleGlobalCoolDownTime;
 
         IsActionUnusable = IsBuffOn = true;
         ActorIStatChangeDisplay.ShowBuffStart(BuffID, EffectTime);
 
-        actorStatChangeable.DecreaseStat(Stat.ManaPoints, manaPointsCost);
+        actorStatChangeHandler.DecreaseStat(Stat.ManaPoints, manaPointsCost);
 
         var hitPointsIncrement = Mathf.RoundToInt(actorStats[Stat.MaximumHitPoints] * 0.04f);
-        actorStatChangeable.IncreaseStat(Stat.HitPoints, hitPointsIncrement);
+        actorStatChangeHandler.IncreaseStat(Stat.HitPoints, hitPointsIncrement);
         ActorIStatChangeDisplay.ShowHitPointsChange(hitPointsIncrement, false, in actionName);
 
         if (particleEffectName != ParticleEffectName.None)
@@ -61,7 +60,7 @@ public class HPHealAbility : SelfBuffingAction
         if (ActorAnim.GetInteger(ActionMode) == actionID)
             ActorAnim.SetInteger(ActionMode, 0);
 
-        ActorIActable.ActionBeingTaken = 0;
+        ActorActionHandler.ActionBeingTaken = 0;
         IsActionUnusable = false;
 
         yield return new WaitForSeconds(EffectTime - InvisibleGlobalCoolDownTime);
@@ -70,7 +69,7 @@ public class HPHealAbility : SelfBuffingAction
         IsBuffOn = false;
     }
 
-    public override void Execute(int actorID, GameObject target, ActionInfo actionInfo)
+    public override void Execute(int actorID, GameObject target, CharacterAction actionInfo)
     {
         if (IsActionUnusable)
             return;
@@ -84,7 +83,7 @@ public class HPHealAbility : SelfBuffingAction
 
         CoolDownTime = actionInfo.coolDownTime;
         InvisibleGlobalCoolDownTime = actionInfo.invisibleGlobalCoolDownTime;
-        manaPointsCost = actionInfo.mPCost;
+        manaPointsCost = actionInfo.manaPointsCost;
         actionName = actionInfo.name;
 
         if (IsBuffOn && CurrentActionCoroutine != null)
@@ -105,6 +104,6 @@ public class HPHealAbility : SelfBuffingAction
             ActorMonoBehaviour.StopCoroutine(CurrentActionCoroutine);
             CurrentActionCoroutine = null;
         }
-        ActorIActable.IsCasting = false;
+        ActorActionHandler.IsCasting = false;
     }
 }

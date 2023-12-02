@@ -4,7 +4,7 @@ namespace CommandPattern
 {
     public interface ICommand
     {
-        void Execute(int actorID, GameObject target, ActionInfo actionInfo);
+        void Execute(int actorID, GameObject target, CharacterAction actionInfo);
         void Stop();
         Coroutine CurrentActionCoroutine { get; set; }
     }

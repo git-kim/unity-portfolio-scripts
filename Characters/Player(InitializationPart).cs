@@ -2,13 +2,11 @@
 using UnityEngine;
 using UnityEngine.Events;
 using System.Linq;
-// using Cinemachine;
 using GameData;
-using Characters.Components;
+using Characters.Handlers;
 
-public sealed partial class Player : Character, IActable
+public sealed partial class Player : Character
 {
-    #region 인스펙터 비사용 변수
     private GameManager gameManagerInstance;
     private KeyManager keyManagerInstance;
     private Transform playerTransform;
@@ -35,56 +33,40 @@ public sealed partial class Player : Character, IActable
 
     private Coroutine landCoroutine;
 
-    private readonly Actions actionCommands = new Actions(); // 주의: = new Actions();를 잊으면 안 된다.
 
     private PlayerCastingBarDisplay playerCastingBarDisplay;
 
-    private float sqrDistanceFromCurrentTarget = 0f;
-
     private SprintAbility sprint;
-    private HPHealAbility hPHealAbility;
-    private MPHealAbility mPHealAbility;
+    private HitPointsHealingAbility hitPointsHealingAbility;
+    private ManaPointsHealingAbility manaPointsHealingAbility;
 
     private HitAndManaPointsDisplay playerHPMPDisplay;
 
     private IStatChangeDisplay playerIStatChangeDisplay;
 
     private ISelectable currentTargetISelectable;
-    private StatChangeable currentTargetStatChangeable;
+    private StatChangeHandler currentTargetStatChangeHandler;
 
     private int autoHitPointsRegeneration, autoManaPointsRegeneration;
 
     private readonly Vector3 forwardRight = (Vector3.forward + Vector3.right).normalized;
 
     private float timeToTurnOffBattleMode = 3f;
-    #endregion
 
-    #region 프로퍼티
     public IStatChangeDisplay PlayerIStatChangeDisplay => playerIStatChangeDisplay;
-    #endregion
-
-    #region 인터페이스 프로퍼티 구현
-    // 참고: 프로퍼티는 인스펙터에 나타나지 않는다.
-    public Actions ActionCommands => actionCommands;
-    public CastingBarDisplay CastingBarDisplay => playerCastingBarDisplay;
-    public bool IsCasting { get; set; } = false;
-    public int ActionToTake { get; set; } = 0;
-    public int ActionBeingTaken { get; set; } = 0;
-    public float VisibleGlobalCoolDownTime { get; set; } = 0f;
-    public float InvisibleGlobalCoolDownTime { get; set; } = 0f;
-    public float GlobalCoolDownTime { get; private set; }
-    public float SqrDistanceFromCurrentTarget => sqrDistanceFromCurrentTarget;
 
     public Statistics Stats { get; private set; }
-    #endregion
+    [SerializeField] private StatChangeHandler statChangeHandler;
 
-    [SerializeField] private StatChangeable statChangeable;
+    [SerializeField] private CharacterActionHandler characterActionHandler;
+    public CharacterActions CharacterActions => characterActionHandler.CharacterActions;
+    public float VisibleGlobalCoolDownTime => characterActionHandler.VisibleGlobalCoolDownTime;
+    public float GlobalCoolDownTime => characterActionHandler.GlobalCoolDownTime;
+    public float SqrDistanceFromCurrentTarget => characterActionHandler.SqrDistanceFromCurrentTarget;
+    public bool IsCasting => characterActionHandler.IsCasting;
 
-    // Awake: 이 스크립트가 달린 gameObject가 생성되어 활성화하면 (최초 1회) 호출되는 초기화 함수(스크립트 컴포넌트 활성 여부와는 무관하게 호출된다.)
     protected override void Awake()
     {
-        Identifier = 0;
-        GlobalCoolDownTime = 2f;
         playerTransform = gameObject.transform;
         gameManagerInstance = GameManager.Instance;
         keyManagerInstance = KeyManager.Instance;
@@ -110,7 +92,6 @@ public sealed partial class Player : Character, IActable
 
         GroundCheckStartY = Controller.stepOffset;
 
-        // 참고: 아래 네 줄을 입력하고 싶지 않다면 위 UnityEvent 앞에 [SerializeField]를 붙이면 된다(이러면 인스펙터에서도 각 이벤트에 리스너 지정이 가능하다).
         onJumpUp = new UnityEvent();
         onFall = new UnityEvent();
         onLand = new UnityEvent();
@@ -128,7 +109,7 @@ public sealed partial class Player : Character, IActable
         CurrentTarget = RecentTarget = null; // 주의: 이 줄이 있어야 오류가 발생하지 않는다.
 
         currentTargetISelectable = null;
-        currentTargetStatChangeable = null;
+        currentTargetStatChangeHandler = null;
 
         audioListenerTransform = gameObject.GetComponentInChildren<AudioListener>().transform;
 
@@ -148,13 +129,17 @@ public sealed partial class Player : Character, IActable
         onFall.AddListener(playerFeetIK.DisableFeetIK);
 
         playerHPMPDisplay = FindObjectOfType<HitAndManaPointsDisplay>();
-        Identifier = gameManagerInstance.AddPlayerAlive(Identifier, playerTransform);
 
-        SetInitialStats();
-        SetActionCommands(); // should be called after SetInitialStats()
+        Identifier = gameManagerInstance.AddPlayerAlive(Identifier, playerTransform);
+        SetStats();
+        SetStatPointsRegeneratingEvent();
+        InitializeStatChangeHandler();
+
+        InitializeCharacterActionHandler();
+        SetActionCommands();
     }
 
-    private void SetInitialStats()
+    private void SetStats()
     {
         Stats = new StatisticsBuilder()
             .SetBaseValue(Stat.HitPoints, 3000)
@@ -170,83 +155,115 @@ public sealed partial class Player : Character, IActable
 
         autoHitPointsRegeneration = (int)(Stats[Stat.MaximumHitPoints] * 0.008f);
         autoManaPointsRegeneration = (int)(Stats[Stat.MaximumHitPoints] * 0.025f);
+    }
 
-        statChangeable.Initialize(new StatChangeable.InitializationContext
-        {
-            Identifier = Identifier,
-            stats = Stats,
-            hitAndManaPointsDisplay = playerHPMPDisplay,
-            statChangeDisplay = playerIStatChangeDisplay,
-            onHitPointsBecomeZero = onDie.Invoke
-        });
-
+    private void SetStatPointsRegeneratingEvent()
+    {
         gameManagerInstance.onGameTick.AddListener(RegenerateStatPoints);
     }
 
-    /// <summary>
-    /// 사용 가능 기술(액션)을 지정한다.
-    /// </summary>
-    void SetActionCommands()
+    private void InitializeStatChangeHandler()
     {
-        ActionInfo nullAction = new ActionInfo(-1, new NullAction(gameObject), ActionTargetType.Self, 0f, 0f, 0f); // Placeholder로 사용할 액션 정보 변수
-
-        // 0(널 액션)
-        actionCommands.Add(nullAction);
-
-        // 1(불덩이) - Non-self, global
-        actionCommands.Add(new ActionInfo(1, new FireballSpell(gameObject), ActionTargetType.NonSelf, GlobalCoolDownTime, GlobalCoolDownTime, 0.5f, 25f, 0f, 250,
-            "불덩이", "25미터 이내 선택 대상에게 불덩이를 던진다."));
-
-        // 2(저주) - Non-self, global
-        actionCommands.Add(new ActionInfo(2, new CurseSpell(gameObject, 3), ActionTargetType.NonSelf, 0f, GlobalCoolDownTime, 0.5f, 25f, 0f, 500,
-            "저주", "25미터 이내 선택 대상에게 저주를 내려 30초 동안 일정 시간 간격마다 대상 HP를 소량 감소한다."));
-
-        // 3(HP 회복 능력) - Self, global
-        hPHealAbility = new HPHealAbility(gameObject, 1, PlayerIStatChangeDisplay);
-        actionCommands.Add(new ActionInfo(3, hPHealAbility, ActionTargetType.Self, 0f, GlobalCoolDownTime, 0.5f, 0f, 0f, 800,
-            "HP 회복", "HP를 10초 동안 일정 시간 간격마다 소량 회복한다."));
-
-        // 4(MP 회복 능력) - Self, off-global, 캐스팅 중이 아니면 글로벌 재사용 대기 시간을 무시한다.
-        mPHealAbility = new MPHealAbility(gameObject, 2, actionButtons[4].GetComponent<OffGlobalCoolDownActionButton>(), PlayerIStatChangeDisplay);
-        actionCommands.Add(new ActionInfo(4, mPHealAbility, ActionTargetType.Self, 0f, 60f, 0.5f, 0f, 0f, 0,
-            "MP 회복", "MP를 20초 동안 일정 시간 간격마다 소량 회복한다.", true));
-
-        // 5(빔 - 궁극 주문) - Non-self, off-global
-        actionCommands.Add(nullAction);
-
-        // 6(잰 발놀림) - Self, off-global, 글로벌 재사용 대기 시간을 무시하지 않는다.
-        sprint = new SprintAbility(gameObject, 0, actionButtons[6].GetComponent<OffGlobalCoolDownActionButton>(), PlayerIStatChangeDisplay);
-        actionCommands.Add(new ActionInfo(6, sprint, ActionTargetType.Self, 0f, 60f, 0.5f, 0f, 0f, 0,
-            "잰 발놀림", "20초(전투 중 효과 지속 시간: 10초) 동안 더 빨리 걷거나 더 빨리 달릴 수 있다."));
+        statChangeHandler.Initialize(
+            new StatChangeHandler.InitializationContext
+            {
+                identifier = Identifier,
+                stats = Stats,
+                hitAndManaPointsDisplay = playerHPMPDisplay,
+                statChangeDisplay = playerIStatChangeDisplay,
+                onHitPointsBecomeZero = onDie.Invoke
+            });
     }
 
-    /// <summary>
-    /// HP, MP를 자연히 회복한다.
-    /// </summary>
-    void RegenerateStatPoints()
+    private void InitializeCharacterActionHandler()
     {
-        if (statChangeable.HasZeroHitPoints) return;
+        characterActionHandler.Initialize(
+            new CharacterActionHandler.InitializationContext
+            {
+                actionToTake = 0,
+                actionBeingTaken = 0,
+                isCasting = false,
+                globalCoolDownTime = 2f,
+                visibleGlobalCoolDownTime = 0f,
+                invisibleGlobalCoolDownTime = 0f,
+                sqrDistanceFromCurrentTarget = 0f,
+                castingBarDisplay = playerCastingBarDisplay,
+                characterActions = new CharacterActions(),
+                stats = Stats
+            });
+    }
+
+    void SetActionCommands()
+    {
+        var actionCommands = characterActionHandler.CharacterActions;
+        var globalCoolDownTime = characterActionHandler.GlobalCoolDownTime;
+
+        var nullAction = new CharacterAction(
+            new CharacterAction.CreationContext(-1, new NullActionCommand(gameObject),
+            CharacterActionTargetType.Self, 0f, 0f, 0f));
+
+        actionCommands.Add(nullAction);
+
+        actionCommands.Add(new CharacterAction(
+            new CharacterAction.CreationContext(1, new FireballSpell(gameObject),
+            CharacterActionTargetType.NonSelf,
+            globalCoolDownTime, globalCoolDownTime, 0.5f, 25f, 0f, 250,
+            "불덩이", "25미터 이내 선택 대상에게 불덩이를 던진다.")));
+
+        actionCommands.Add(new CharacterAction(
+            new CharacterAction.CreationContext(2, new CurseSpell(gameObject, 3),
+            CharacterActionTargetType.NonSelf,
+            0f, globalCoolDownTime, 0.5f, 25f, 0f, 500,
+            "저주", "25미터 이내 선택 대상에게 저주를 내려 30초 동안 일정 시간마다 대상 HP를 소량 감소한다.")));
+
+        hitPointsHealingAbility = new HitPointsHealingAbility(gameObject, 1, PlayerIStatChangeDisplay);
+        actionCommands.Add(new CharacterAction(
+            new CharacterAction.CreationContext(3, hitPointsHealingAbility,
+            CharacterActionTargetType.Self,
+            0f, globalCoolDownTime, 0.5f, 0f, 0f, 800,
+            "HP 회복", "HP를 10초 동안 일정 시간마다 소량 회복한다.")));
+
+        manaPointsHealingAbility = new ManaPointsHealingAbility(gameObject, 2, actionButtons[4].GetComponent<OffGlobalCoolDownActionButton>(), PlayerIStatChangeDisplay);
+        actionCommands.Add(new CharacterAction(
+            new CharacterAction.CreationContext(4, manaPointsHealingAbility,
+            CharacterActionTargetType.Self,
+            0f, 60f, 0.5f, 0f, 0f, 0,
+            "MP 회복", "MP를 20초 동안 일정 시간마다 소량 회복한다.", true)));
+
+        actionCommands.Add(nullAction); // (not implemented) Ult.: non - self, off - global
+
+        sprint = new SprintAbility(gameObject, 0, actionButtons[6].GetComponent<OffGlobalCoolDownActionButton>(), PlayerIStatChangeDisplay);
+        actionCommands.Add(new CharacterAction(
+            new CharacterAction.CreationContext(6, sprint,
+            CharacterActionTargetType.Self,
+            0f, 60f, 0.5f, 0f, 0f, 0,
+            "잰 발놀림", "20초(전투 중 효과 지속 시간: 10초) 동안 더 빨리 걷거나 더 빨리 달릴 수 있다.")));
+    }
+
+    private void RegenerateStatPoints()
+    {
+        if (statChangeHandler.HasZeroHitPoints) return;
 
         if (Animator.GetBool(BattlePoseOn))
         {
-            statChangeable.IncreaseStat(Stat.HitPoints, (int)(autoHitPointsRegeneration * Random.Range(0.4f, 0.6f)));
-            statChangeable.IncreaseStat(Stat.ManaPoints, (int)(autoManaPointsRegeneration * Random.Range(0.4f, 0.6f)));
+            statChangeHandler.IncreaseStat(Stat.HitPoints, (int)(autoHitPointsRegeneration * Random.Range(0.4f, 0.6f)));
+            statChangeHandler.IncreaseStat(Stat.ManaPoints, (int)(autoManaPointsRegeneration * Random.Range(0.4f, 0.6f)));
         }
         else
         {
-            statChangeable.IncreaseStat(Stat.HitPoints, (int)(autoHitPointsRegeneration * Random.Range(0.9f, 1.1f)));
-            statChangeable.IncreaseStat(Stat.ManaPoints, (int)(autoManaPointsRegeneration * Random.Range(0.9f, 1.1f)));
+            statChangeHandler.IncreaseStat(Stat.HitPoints, (int)(autoHitPointsRegeneration * Random.Range(0.9f, 1.1f)));
+            statChangeHandler.IncreaseStat(Stat.ManaPoints, (int)(autoManaPointsRegeneration * Random.Range(0.9f, 1.1f)));
         }
 
-        if (hPHealAbility.IsBuffOn)
+        if (hitPointsHealingAbility.IsBuffOn)
         {
-            statChangeable.IncreaseStat(Stat.HitPoints, Stats[Stat.HitPointsRestorability]);
-            statChangeable.ShowHitPointsChange(Stats[Stat.HitPointsRestorability], false, null);
+            statChangeHandler.IncreaseStat(Stat.HitPoints, Stats[Stat.HitPointsRestorability]);
+            statChangeHandler.ShowHitPointsChange(Stats[Stat.HitPointsRestorability], false, null);
         }
 
-        if (mPHealAbility.IsBuffOn)
+        if (manaPointsHealingAbility.IsBuffOn)
         {
-            statChangeable.IncreaseStat(Stat.ManaPoints, Stats[Stat.ManaPointsRestorability]);
+            statChangeHandler.IncreaseStat(Stat.ManaPoints, Stats[Stat.ManaPointsRestorability]);
         }
     }
 }

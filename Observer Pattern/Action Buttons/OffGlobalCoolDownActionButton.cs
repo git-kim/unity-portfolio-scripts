@@ -8,8 +8,8 @@ public class OffGlobalCoolDownActionButton : ActionButton
     private GameManager gameManagerInstance;
     private UIProgressBar coolDownTimeIndicator;
     private DisablenessIndicator disablenessIndicator;
-    private UILabel mPCostIndicator;
-    private int mPCost = 0;
+    private UILabel manaPointsCostIndicator;
+    private int manaPointsCost = 0;
     private float sqrRange = 0f;
 
     private float currentCoolDownTime;
@@ -31,7 +31,7 @@ public class OffGlobalCoolDownActionButton : ActionButton
         foreach (var indicator in GetComponentsInChildren<UILabel>(true)
                      .Where(indicator => indicator.name.Contains("MP")))
         {
-            mPCostIndicator = indicator;
+            manaPointsCostIndicator = indicator;
             break;
         }
 
@@ -43,11 +43,11 @@ public class OffGlobalCoolDownActionButton : ActionButton
         if (!HasPlayerVariablesBeenSet)
             SetPlayerVariables();
 
-        mPCost = PlayerActionCommands[actionID].mPCost;
+        manaPointsCost = PlayerActionCommands[actionID].manaPointsCost;
         sqrRange = Mathf.Pow(PlayerActionCommands[actionID].range, 2f);
 
         currentCoolDownTime = 0f;
-        actionCoolDownTime = Player.ActionCommands[actionID].coolDownTime;
+        actionCoolDownTime = Player.CharacterActions[actionID].coolDownTime;
     }
 
     public sealed override void React()
@@ -66,27 +66,27 @@ public class OffGlobalCoolDownActionButton : ActionButton
 
     public sealed override void React2()
     {
-        if (mPCost == 0 || sqrRange == 0f) return;
+        if (manaPointsCost == 0 || sqrRange == 0f) return;
 
         // MP 검사
-        if (Player.Stats[Stat.ManaPoints] < mPCost)
+        if (Player.Stats[Stat.ManaPoints] < manaPointsCost)
         {
-            mPCostIndicator.effectColor = UnusablenessColor;
+            manaPointsCostIndicator.effectColor = UnusablenessColor;
             return;
         }
         else
         {
-            mPCostIndicator.effectColor = UsablenessColor;
+            manaPointsCostIndicator.effectColor = UsablenessColor;
         }
 
         // 거리 검사
         if (Player.SqrDistanceFromCurrentTarget > sqrRange)
         {
-            mPCostIndicator.effectColor = UnusablenessColor;
+            manaPointsCostIndicator.effectColor = UnusablenessColor;
             return;
         }
 
-        mPCostIndicator.effectColor = UsablenessColor;
+        manaPointsCostIndicator.effectColor = UsablenessColor;
     }
 
     public void StartCoolDown()

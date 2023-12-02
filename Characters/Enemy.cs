@@ -2,10 +2,9 @@
 using UnityEngine;
 using GameData;
 using UnityEngine.AI;
-using Characters.Components;
-using UnityEditor.Experimental.GraphView;
+using Characters.Handlers;
 
-public class Enemy : Character, IActable, ISelectable
+public class Enemy : Character, ISelectable
 {
     private enum EnemyState
     {
@@ -20,6 +19,10 @@ public class Enemy : Character, IActable, ISelectable
 
     private EnemyState state;
 
+    private static readonly int MovementMode = Animator.StringToHash("MovementMode");
+    private static readonly int Attack = Animator.StringToHash("Attack");
+    private static readonly int Dead = Animator.StringToHash("Dead");
+
     private const float MaxSquareOfChaseDistance = 2500f;
     private const float MaxSquareOfMeleeAttackRange = 25f;
     private const float SquareOfStoppingDistance = 16f;
@@ -27,32 +30,19 @@ public class Enemy : Character, IActable, ISelectable
 
     private GameManager gameManagerInstance;
     private Transform currentTargetTransform, enemyTransform;
-    public Statistics Stats { get; private set; }
-
-    public Actions ActionCommands { get; } = new Actions();
-
-    public float SqrDistanceFromCurrentTarget { get; private set; } = 0f;
 
     private EnemyHPDisplay enemyHPDisplay;
     public Dictionary<int, KeyValuePair<Stat, int>> ActiveBuffEffects { get; set; } = new Dictionary<int, KeyValuePair<Stat, int>>();
     public TargetIndicator TargetIndicator { get; set; }
 
-    public bool IsDead { get; set; } = false;
-
-    public bool IsCasting { get; set; }
-    public int ActionToTake { get; set; } = 0;
-    public int ActionBeingTaken { get; set; } = 0;
-    public float VisibleGlobalCoolDownTime { get; set; }
-    public float InvisibleGlobalCoolDownTime { get; set; }
-
-    public float GlobalCoolDownTime => 2f;
+    public bool IsDead => statChangeHandler.HasZeroHitPoints;
 
     private CastingBarDisplay castingBarDisplay;
-    public CastingBarDisplay CastingBarDisplay => castingBarDisplay;
+    
 
     private IStatChangeDisplay enemyIStatChangeDisplay;
 
-    private StatChangeable currentTargetStatChangeable;
+    private StatChangeHandler currentTargetStatChangeHandler;
 
     public IStatChangeDisplay EnemyIStatChangeDisplay => enemyIStatChangeDisplay;
 
@@ -69,11 +59,11 @@ public class Enemy : Character, IActable, ISelectable
 
     private float timePassedSinceReset = 0f;
 
-    private static readonly int MovementMode = Animator.StringToHash("MovementMode");
-    private static readonly int Attack = Animator.StringToHash("Attack");
-    private static readonly int Dead = Animator.StringToHash("Dead");
 
-    [SerializeField] private StatChangeable statChangeable;
+    public Statistics Stats { get; private set; }
+    [SerializeField] private StatChangeHandler statChangeHandler;
+
+    [SerializeField] private CharacterActionHandler characterActionHandler;
 
     protected override void Awake()
     {
@@ -81,14 +71,15 @@ public class Enemy : Character, IActable, ISelectable
 
         Identifier = 100;
 
-        SetInitialStats(); // 초기 스탯 설정
+        SetStats();
+        InitializeStatChangeHandler();
 
         enemyIStatChangeDisplay = FindObjectOfType<EnemyStatChangeDisplay>();
 
         TargetIndicator = gameObject.GetComponentInChildren<TargetIndicator>(true);
         TargetIndicator.Disable();
 
-        castingBarDisplay = null; // todo: 지정 필요
+        castingBarDisplay = null;
 
         CurrentTarget = RecentTarget = null;
         currentTargetTransform = null;
@@ -99,9 +90,11 @@ public class Enemy : Character, IActable, ISelectable
         Animator = gameObject.GetComponent<Animator>();
 
         navMeshAgent = gameObject.GetComponent<NavMeshAgent>();
+
+        InitializeCharacterActionHandler();
     }
 
-    private void SetInitialStats()
+    private void SetStats()
     {
         Stats = new StatisticsBuilder()
             .SetBaseValue(Stat.HitPoints, 2500)
@@ -112,15 +105,36 @@ public class Enemy : Character, IActable, ISelectable
             .SetBaseValue(Stat.MeleeDefense, 160)
             .SetBaseValue(Stat.MagicAttack, 10)
             .SetBaseValue(Stat.MagicDefense, 10);
+    }
 
-        statChangeable.Initialize(new StatChangeable.InitializationContext
+    private void InitializeStatChangeHandler()
+    {
+        statChangeHandler.Initialize(new StatChangeHandler.InitializationContext
         {
-            Identifier = Identifier,
+            identifier = Identifier,
             stats = Stats,
             hitAndManaPointsDisplay = null,
             statChangeDisplay = enemyIStatChangeDisplay,
             onHitPointsBecomeZero = null
         });
+    }
+
+    private void InitializeCharacterActionHandler()
+    {
+        characterActionHandler.Initialize(
+            new CharacterActionHandler.InitializationContext
+            {
+                actionToTake = 0,
+                actionBeingTaken = 0,
+                isCasting = false,
+                globalCoolDownTime = 2f,
+                visibleGlobalCoolDownTime = 0f,
+                invisibleGlobalCoolDownTime = 0f,
+                sqrDistanceFromCurrentTarget = 0f,
+                castingBarDisplay = castingBarDisplay,
+                characterActions = new CharacterActions(),
+                stats = Stats
+            });
     }
 
     public void IncreaseEnmity(int playerID, uint amount)
@@ -222,15 +236,15 @@ public class Enemy : Character, IActable, ISelectable
             return;
         }
 
-        if (currentTargetStatChangeable == null || currentTargetStatChangeable.HasZeroHitPoints) return;
+        if (currentTargetStatChangeHandler == null || currentTargetStatChangeHandler.HasZeroHitPoints) return;
 
-        SqrDistanceFromCurrentTarget = GetSqrDistance(enemyTransform.position, currentTargetTransform.position);
+        characterActionHandler.SqrDistanceFromCurrentTarget = GetSqrDistance(enemyTransform.position, currentTargetTransform.position);
 
-        if (SqrDistanceFromCurrentTarget <= MaxSquareOfMeleeAttackRange)
+        if (characterActionHandler.SqrDistanceFromCurrentTarget <= MaxSquareOfMeleeAttackRange)
         {
             LookAtCurrentTarget();
 
-            if (SqrDistanceFromCurrentTarget > SquareOfStoppingDistance)
+            if (characterActionHandler.SqrDistanceFromCurrentTarget > SquareOfStoppingDistance)
                 navMeshAgent.SetDestination(currentTargetTransform.position);
             else
                 navMeshAgent.SetDestination(enemyTransform.position);
@@ -243,10 +257,10 @@ public class Enemy : Character, IActable, ISelectable
                 Animator.SetTrigger(Attack);
 
                 var effectiveDamage =
-                    currentTargetStatChangeable.GetEffectiveDamage(Stats[Stat.MeleeAttack], true,
+                    currentTargetStatChangeHandler.GetEffectiveDamage(Stats[Stat.MeleeAttack], true,
                     Utilities.GetRandomFloatFromSineDistribution(0.96f, 1.04f));
-                currentTargetStatChangeable.DecreaseStat(Stat.HitPoints, effectiveDamage);
-                currentTargetStatChangeable.ShowHitPointsChange(effectiveDamage, true, null);
+                currentTargetStatChangeHandler.DecreaseStat(Stat.HitPoints, effectiveDamage);
+                currentTargetStatChangeHandler.ShowHitPointsChange(effectiveDamage, true, null);
             }
         }
         else
@@ -265,16 +279,16 @@ public class Enemy : Character, IActable, ISelectable
             return;
         }
 
-        if (currentTargetStatChangeable == null || currentTargetStatChangeable.HasZeroHitPoints) return;
+        if (currentTargetStatChangeHandler == null || currentTargetStatChangeHandler.HasZeroHitPoints) return;
 
-        SqrDistanceFromCurrentTarget = GetSqrDistance(enemyTransform.position, currentTargetTransform.position);
+        characterActionHandler.SqrDistanceFromCurrentTarget = GetSqrDistance(enemyTransform.position, currentTargetTransform.position);
 
-        if (SqrDistanceFromCurrentTarget > MaxSquareOfChaseDistance)
+        if (characterActionHandler.SqrDistanceFromCurrentTarget > MaxSquareOfChaseDistance)
         {
             // 복귀 상태로 변경하기
             state = EnemyState.Returning;
         }
-        else if (SqrDistanceFromCurrentTarget > MaxSquareOfMeleeAttackRange)
+        else if (characterActionHandler.SqrDistanceFromCurrentTarget > MaxSquareOfMeleeAttackRange)
         {
             // 이동 처리
             navMeshAgent.SetDestination(currentTargetTransform.position); // NavMeshAgent 변수를 사용하여 적 캐릭터를 플레이어 캐릭터 쪽으로 이동한다.
@@ -293,11 +307,11 @@ public class Enemy : Character, IActable, ISelectable
     {
         if (enmitiesAgainstPlayers.Count > 0 && CurrentTarget != null)
         {
-            SqrDistanceFromCurrentTarget = GetSqrDistance(enemyTransform.position, currentTargetTransform.position);
+            characterActionHandler.SqrDistanceFromCurrentTarget = GetSqrDistance(enemyTransform.position, currentTargetTransform.position);
 
-            if (SqrDistanceFromCurrentTarget <= MaxSquareOfChaseDistance)
+            if (characterActionHandler.SqrDistanceFromCurrentTarget <= MaxSquareOfChaseDistance)
             {
-                if (SqrDistanceFromCurrentTarget > MaxSquareOfMeleeAttackRange)
+                if (characterActionHandler.SqrDistanceFromCurrentTarget > MaxSquareOfMeleeAttackRange)
                 {
                     // 이동 상태로 변경하기
                     state = EnemyState.Locomoting;
@@ -351,14 +365,14 @@ public class Enemy : Character, IActable, ISelectable
 
     private void UpdateCurrentTarget()
     {
-        if (currentTargetStatChangeable.SelfOrNull() != null && currentTargetStatChangeable.HasZeroHitPoints)
+        if (currentTargetStatChangeHandler.SelfOrNull() != null && currentTargetStatChangeHandler.HasZeroHitPoints)
         {
-            enmitiesAgainstPlayers.Remove(currentTargetStatChangeable.Identifier);
+            enmitiesAgainstPlayers.Remove(currentTargetStatChangeHandler.Identifier);
 
             RecentTarget = CurrentTarget;
             CurrentTarget = null;
             currentTargetTransform = null;
-            currentTargetStatChangeable = null;
+            currentTargetStatChangeHandler = null;
         }
 
         if (!hasEnmityListBeenUpdated || enmitiesAgainstPlayers.Count <= 0)
@@ -371,7 +385,7 @@ public class Enemy : Character, IActable, ISelectable
         if (RecentTarget == CurrentTarget)
             return;
 
-        currentTargetStatChangeable = CurrentTarget.GetComponent<StatChangeable>();
+        currentTargetStatChangeHandler = CurrentTarget.GetComponent<StatChangeHandler>();
 
         hasEnmityListBeenUpdated = false;
     }
@@ -382,10 +396,8 @@ public class Enemy : Character, IActable, ISelectable
 
         foreach (KeyValuePair<Stat, int> activeBuffEffect in ActiveBuffEffects.Values)
         {
-            DecreaseStat(activeBuffEffect.Key, activeBuffEffect.Value, true, true);
+            statChangeHandler.DecreaseStat(activeBuffEffect.Key, activeBuffEffect.Value);
         }
-
-        UpdateStatBars();
     }
 
     public GameData.Statistics GetStats()
@@ -393,82 +405,82 @@ public class Enemy : Character, IActable, ISelectable
         return Stats;
     }
 
-    public void UpdateStatBars()
-    {
-        if (IsDead) return;
+    //public void UpdateStatBars()
+    //{
+    //    if (IsDead) return;
 
-        if (Stats[Stat.HitPoints] > 0f)
-        {
-            enemyHPDisplay.UpdateHPBar(Stats[Stat.HitPoints], Stats[Stat.MaximumHitPoints]);
-        }
-        else
-        {
-            enemyHPDisplay.UpdateHPBar(0, 1);
-            IsDead = true;
-        }
-    }
+    //    if (Stats[Stat.HitPoints] > 0f)
+    //    {
+    //        enemyHPDisplay.UpdateHPBar(Stats[Stat.HitPoints], Stats[Stat.MaximumHitPoints]);
+    //    }
+    //    else
+    //    {
+    //        enemyHPDisplay.UpdateHPBar(0, 1);
+    //        IsDead = true;
+    //    }
+    //}
 
-    public void IncreaseStat(Stat stat, int increment, bool shouldShowHPChangeDigits, bool isChangingOverTime)
-    {
-        Stats[stat] += increment;
+    //public void IncreaseStat(Stat stat, int increment, bool shouldShowHPChangeDigits, bool isChangingOverTime)
+    //{
+    //    Stats[stat] += increment;
 
-        switch (stat)
-        {
-            case Stat.HitPoints:
-                {
-                    if (Stats[stat] > Stats[Stat.MaximumHitPoints])
-                        Stats[stat] = Stats[Stat.MaximumHitPoints];
-                }
-                break;
-            case Stat.ManaPoints:
-                {
-                    if (Stats[stat] > Stats[Stat.MaximumManaPoints])
-                        Stats[stat] = Stats[Stat.MaximumManaPoints];
-                }
-                break;
-        }
-    }
+    //    switch (stat)
+    //    {
+    //        case Stat.HitPoints:
+    //            {
+    //                if (Stats[stat] > Stats[Stat.MaximumHitPoints])
+    //                    Stats[stat] = Stats[Stat.MaximumHitPoints];
+    //            }
+    //            break;
+    //        case Stat.ManaPoints:
+    //            {
+    //                if (Stats[stat] > Stats[Stat.MaximumManaPoints])
+    //                    Stats[stat] = Stats[Stat.MaximumManaPoints];
+    //            }
+    //            break;
+    //    }
+    //}
 
-    public void DecreaseStat(Stat stat, int decrement, bool shouldShowHPChangeDigits, bool isChangingOverTime)
-    {
-        Stats[stat] -= decrement;
+    //public void DecreaseStat(Stat stat, int decrement, bool shouldShowHPChangeDigits, bool isChangingOverTime)
+    //{
+    //    Stats[stat] -= decrement;
 
-        switch (stat)
-        {
-            case Stat.HitPoints:
-                {
-                    if (Stats[stat] < 0)
-                    {
-                        Stats[stat] = 0;
-                        if (!IsDead)
-                        {
-                            UpdateStatBars();
-                            IsDead = true;
-                            gameManagerInstance.EnemiesAlive.Remove(Identifier);
-                            gameManagerInstance.onGameTick.RemoveListener(UpdateStat);
-                            // StartCoroutine(EndGame());
-                            enemyIStatChangeDisplay.RemoveAllDisplayingBuffs();
-                            state = EnemyState.Dying;
-                        }
-                    }
+    //    switch (stat)
+    //    {
+    //        case Stat.HitPoints:
+    //            {
+    //                if (Stats[stat] < 0)
+    //                {
+    //                    Stats[stat] = 0;
+    //                    if (!IsDead)
+    //                    {
+    //                        UpdateStatBars();
+    //                        IsDead = true;
+    //                        gameManagerInstance.EnemiesAlive.Remove(Identifier);
+    //                        gameManagerInstance.onGameTick.RemoveListener(UpdateStat);
+    //                        // StartCoroutine(EndGame());
+    //                        enemyIStatChangeDisplay.RemoveAllDisplayingBuffs();
+    //                        state = EnemyState.Dying;
+    //                    }
+    //                }
 
-                    if (shouldShowHPChangeDigits)
-                    {
-                        if (isChangingOverTime)
-                            enemyIStatChangeDisplay.ShowHitPointsChangeOverTime(decrement, true);
-                        else
-                            enemyIStatChangeDisplay.ShowHitPointsChange(decrement, true, null);
-                    }
+    //                if (shouldShowHPChangeDigits)
+    //                {
+    //                    if (isChangingOverTime)
+    //                        enemyIStatChangeDisplay.ShowHitPointsChangeOverTime(decrement, true);
+    //                    else
+    //                        enemyIStatChangeDisplay.ShowHitPointsChange(decrement, true, null);
+    //                }
 
-                    UpdateStatBars();
-                }
-                break;
-            case Stat.ManaPoints:
-                {
-                    if (Stats[stat] < 0)
-                        Stats[stat] = 0;
-                }
-                break;
-        }
-    }
+    //                UpdateStatBars();
+    //            }
+    //            break;
+    //        case Stat.ManaPoints:
+    //            {
+    //                if (Stats[stat] < 0)
+    //                    Stats[stat] = 0;
+    //            }
+    //            break;
+    //    }
+    //}
 }

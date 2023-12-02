@@ -2,7 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using GameData;
-using Characters.Components;
+using Characters.Handlers;
 
 public class CurseSpell : NonSelfTargetedAction
 {
@@ -11,8 +11,8 @@ public class CurseSpell : NonSelfTargetedAction
     private bool IsActionUnusable { get; set; }
     private float EffectTime { get; set; }
 
-    private readonly StatChangeable actorStatChangeable;
-    private StatChangeable targetStatChangeable;
+    private readonly StatChangeHandler actorStatChangeHandler;
+    private StatChangeHandler targetStatChangeHandler;
     private IStatChangeDisplay targetIStatChangeDisplay;
     private Transform targetTransform;
 
@@ -32,9 +32,9 @@ public class CurseSpell : NonSelfTargetedAction
         ActorTransform = actor.transform;
         ActorMonoBehaviour = actor.GetComponent<MonoBehaviour>();
         ActorAnimator = actor.GetComponent<Animator>();
-        ActorIActable = actor.GetComponent<IActable>();
-        actorStatChangeable = actor.GetComponent<StatChangeable>();
-        ActorStats = ActorIActable.Stats;
+        ActorActionHandler = actor.GetComponent<CharacterActionHandler>();
+        actorStatChangeHandler = actor.GetComponent<StatChangeHandler>();
+        ActorStats = ActorActionHandler.Stats;
 
         particleEffectName = ParticleEffectName.CurseDebuff;
     }
@@ -45,23 +45,23 @@ public class CurseSpell : NonSelfTargetedAction
     private IEnumerator TakeAction(int actionID, int actorID, ParticleEffectName particleEffectName, Transform targetTransform, Vector3 localPosition, Vector3 toDirection, Vector3 localScale, bool shouldEffectFollowTarget = true)
     {
         ActorAnimator.SetInteger(ActionMode, actionID); // ActionMode에 actionID 값을 저장한다(애니메이션 시작).
-        ActorIActable.ActionBeingTaken = actionID;
+        ActorActionHandler.ActionBeingTaken = actionID;
 
-        ActorIActable.VisibleGlobalCoolDownTime = CoolDownTime;
-        ActorIActable.InvisibleGlobalCoolDownTime = InvisibleGlobalCoolDownTime;
+        ActorActionHandler.VisibleGlobalCoolDownTime = CoolDownTime;
+        ActorActionHandler.InvisibleGlobalCoolDownTime = InvisibleGlobalCoolDownTime;
 
         IsActionUnusable = IsBuffOn = true;
         AfflictWithDebuff();
         targetIStatChangeDisplay.ShowBuffStart(buffID, EffectTime);
 
-        actorStatChangeable.DecreaseStat(Stat.ManaPoints, manaPointsCost);
+        actorStatChangeHandler.DecreaseStat(Stat.ManaPoints, manaPointsCost);
 
         var effectiveDamage = Mathf.RoundToInt(ActorStats[Stat.MagicAttack] * 0.25f);
-        targetStatChangeable.DecreaseStat(Stat.HitPoints, effectiveDamage);
+        targetStatChangeHandler.DecreaseStat(Stat.HitPoints, effectiveDamage);
         targetIStatChangeDisplay.ShowHitPointsChange(effectiveDamage, true, in ActionName);
 
-        if (targetStatChangeable.TryGetComponent<Enemy>(out var enemy)
-            && !actorStatChangeable.HasZeroHitPoints)
+        if (targetStatChangeHandler.TryGetComponent<Enemy>(out var enemy)
+            && !actorStatChangeHandler.HasZeroHitPoints)
         {
             enemy.IncreaseEnmity(actorID, 1);
         }
@@ -74,20 +74,20 @@ public class CurseSpell : NonSelfTargetedAction
         if (ActorAnimator.GetInteger(ActionMode) == actionID)
             ActorAnimator.SetInteger(ActionMode, 0); // ActionMode 값을 초기화한다.
 
-        ActorIActable.ActionBeingTaken = 0;
+        ActorActionHandler.ActionBeingTaken = 0;
         IsActionUnusable = false;
 
         yield return new WaitForSeconds(EffectTime - InvisibleGlobalCoolDownTime);
 
-        if (!targetStatChangeable.HasZeroHitPoints
-            && targetStatChangeable.ActiveStatChangingEffects.ContainsKey(buffID))
+        if (!targetStatChangeHandler.HasZeroHitPoints
+            && targetStatChangeHandler.ActiveStatChangingEffects.ContainsKey(buffID))
             targetIStatChangeDisplay.ShowBuffEnd(buffID);
 
         RemoveDebuff();
         IsBuffOn = false;
     }
 
-    public override void Execute(int actorID, GameObject target, ActionInfo actionInfo)
+    public override void Execute(int actorID, GameObject target, CharacterAction actionInfo)
     {
         if (IsActionUnusable)
             return;
@@ -108,17 +108,17 @@ public class CurseSpell : NonSelfTargetedAction
 
         this.Target = target;
         targetTransform = target.transform;
-        targetStatChangeable = target.GetComponent<StatChangeable>();
+        targetStatChangeHandler = target.GetComponent<StatChangeHandler>();
 
         // Check Others
-        if (targetStatChangeable == null
-            || actorStatChangeable.Identifier.Equals(targetStatChangeable.Identifier))
+        if (targetStatChangeHandler == null
+            || actorStatChangeHandler.Identifier.Equals(targetStatChangeHandler.Identifier))
         {
             GameManagerInstance.ShowErrorMessage(2);
             return;
         }
 
-        if (actorStatChangeable.HasZeroHitPoints || targetStatChangeable.HasZeroHitPoints)
+        if (actorStatChangeHandler.HasZeroHitPoints || targetStatChangeHandler.HasZeroHitPoints)
         {
             return;
         }
@@ -134,7 +134,7 @@ public class CurseSpell : NonSelfTargetedAction
 
         CoolDownTime = actionInfo.coolDownTime;
         InvisibleGlobalCoolDownTime = actionInfo.invisibleGlobalCoolDownTime;
-        manaPointsCost = actionInfo.mPCost;
+        manaPointsCost = actionInfo.manaPointsCost;
         ActionName = actionInfo.name;
 
         if (target.TryGetComponent<Enemy>(out var enemy))
@@ -160,20 +160,20 @@ public class CurseSpell : NonSelfTargetedAction
             ActorMonoBehaviour.StopCoroutine(CurrentActionCoroutine);
             CurrentActionCoroutine = null;
         }
-        ActorIActable.IsCasting = false;
+        ActorActionHandler.IsCasting = false;
     }
 
     private void AfflictWithDebuff()
     {
-        if (!targetStatChangeable.ActiveStatChangingEffects.ContainsKey(buffID))
+        if (!targetStatChangeHandler.ActiveStatChangingEffects.ContainsKey(buffID))
         {
-            targetStatChangeable.ActiveStatChangingEffects.Add(buffID,
+            targetStatChangeHandler.ActiveStatChangingEffects.Add(buffID,
                 new KeyValuePair<Stat, int>(Stat.HitPoints, 40));
         }
     }
 
     private void RemoveDebuff()
     {
-        targetStatChangeable.ActiveStatChangingEffects.Remove(buffID);
+        targetStatChangeHandler.ActiveStatChangingEffects.Remove(buffID);
     }
 }

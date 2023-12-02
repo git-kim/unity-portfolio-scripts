@@ -1,16 +1,15 @@
 using GameData;
 using System.Collections.Generic;
-using UnityEditor.Build;
 using UnityEngine;
 using UnityEngine.Events;
 
-namespace Characters.Components
+namespace Characters.Handlers
 {
-    public class StatChangeable : MonoBehaviour
+    public class StatChangeHandler : MonoBehaviour
     {
         public struct InitializationContext
         {
-            public int Identifier;
+            public int identifier;
             public Statistics stats;
             public HitAndManaPointsDisplay hitAndManaPointsDisplay;
             public IStatChangeDisplay statChangeDisplay;
@@ -40,13 +39,16 @@ namespace Characters.Components
 
         public Dictionary<int, KeyValuePair<Stat, int>> ActiveStatChangingEffects { get; set; }
 
-        public void Initialize(InitializationContext context)
+        public void Initialize(in InitializationContext context)
         {
-            Identifier = context.Identifier;
+            Identifier = context.identifier;
             stats = context.stats;
             hitAndManaPointsDisplay = context.hitAndManaPointsDisplay;
             statChangeDisplay = context.statChangeDisplay;
             OnHitPointsBecomeZero = context.onHitPointsBecomeZero;
+
+            UpdateHitPointsBar();
+            UpdateManaPointsBar();
         }
 
         public void IncreaseStat(Stat stat, int increment)
@@ -59,7 +61,6 @@ namespace Characters.Components
                     {
                         var maximumValue = stats[Stat.MaximumHitPoints];
                         stats[stat] = Mathf.Min(value, maximumValue);
-
                         UpdateHitPointsBar();
                     }
                     break;

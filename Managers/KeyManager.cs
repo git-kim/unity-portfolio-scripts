@@ -31,7 +31,6 @@ public class KeyManager : Singleton<KeyManager>
     public bool Ult { get; private set; } // 궁극 기술
     public bool BattlePose { get; private set; }
     public int MovementMode { get; set; } // 비트 플래그: 0 보통 속도로; 1 빨리(질주 버프); 2 걷기; 4 달리기
-    public bool SprintBuff { get; private set; }
 
     private void ResetValues()
     {
@@ -43,7 +42,6 @@ public class KeyManager : Singleton<KeyManager>
         Jump = BattlePose = false;
         Action = 0;
         MovementMode = 0b100;
-        SprintBuff = false;
     }
 
     private void Awake()
@@ -99,29 +97,16 @@ public class KeyManager : Singleton<KeyManager>
 
         LMBDown = Input.GetMouseButtonDown(0);
 
-        if (Jump)
+        var jump = Input.GetButtonDown(JumpName);
+        if (!jump && Jump && delayToResetJump > 0f)
         {
-            if (delayToResetJump > 0f)
-            {
-                delayToResetJump -= Time.deltaTime;
-            }
-            else
-            {
-                Jump = Input.GetButtonDown(JumpName);
-                delayToResetJump = 0.2f;
-            }
+            delayToResetJump -= Time.deltaTime;
         }
         else
         {
-            Jump = Input.GetButtonDown(JumpName);
+            Jump = jump;
             delayToResetJump = 0.2f;
         }
-
-        ////Action = 0;
-        ////for (int i = 0; i < actionNames.Length; ++i)
-        ////{
-        ////    Action = Input.GetButtonDown(actionNames[i]) ? (i + 1) : Action;
-        ////}
 
         BattlePose = Input.GetButtonDown(BattlePoseName); // 플레이어 캐릭터 전투 시 / 평상시 자세 토글링용
 
