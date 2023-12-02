@@ -1,8 +1,8 @@
 ﻿public interface IStatChangeDisplay
 {
-    void ShowHPChange(int change, bool isDecrement, in string actionName);
+    void ShowHitPointsChange(int change, bool isDecrement, in string actionName);
 
-    void ShowHPChangeOverTime(int change, bool isDecrement = false);
+    void ShowHitPointsChangeOverTime(int change, bool isDecrement = false);
 
     void ShowBuffStart(int buffID, float effectTime);
 

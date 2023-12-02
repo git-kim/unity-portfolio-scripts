@@ -1,9 +1,11 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
-using FluentBuilderPattern;
+using GameData;
 using UnityEngine.AI;
+using Characters.Components;
+using UnityEditor.Experimental.GraphView;
 
-public class Enemy : Character, IDamageable, IActable, ISelectable
+public class Enemy : Character, IActable, ISelectable
 {
     private enum EnemyState
     {
@@ -25,7 +27,7 @@ public class Enemy : Character, IDamageable, IActable, ISelectable
 
     private GameManager gameManagerInstance;
     private Transform currentTargetTransform, enemyTransform;
-    public Statistics Stats { get; set; }
+    public Statistics Stats { get; private set; }
 
     public Actions ActionCommands { get; } = new Actions();
 
@@ -50,7 +52,7 @@ public class Enemy : Character, IDamageable, IActable, ISelectable
 
     private IStatChangeDisplay enemyIStatChangeDisplay;
 
-    private IDamageable currentTargetIDamageable;
+    private StatChangeable currentTargetStatChangeable;
 
     public IStatChangeDisplay EnemyIStatChangeDisplay => enemyIStatChangeDisplay;
 
@@ -70,6 +72,8 @@ public class Enemy : Character, IDamageable, IActable, ISelectable
     private static readonly int MovementMode = Animator.StringToHash("MovementMode");
     private static readonly int Attack = Animator.StringToHash("Attack");
     private static readonly int Dead = Animator.StringToHash("Dead");
+
+    [SerializeField] private StatChangeable statChangeable;
 
     protected override void Awake()
     {
@@ -95,20 +99,28 @@ public class Enemy : Character, IDamageable, IActable, ISelectable
         Animator = gameObject.GetComponent<Animator>();
 
         navMeshAgent = gameObject.GetComponent<NavMeshAgent>();
-        //navMeshAgent.stoppingDistance = Mathf.Sqrt(squareOfStoppingDistance) * 0.84f;
-
-        //locomotionSpeed = 6f;
     }
 
     private void SetInitialStats()
     {
         Stats = new StatisticsBuilder()
-            .SetHP(2500).SetMaxHP(2500)
-            .SetMP(1).SetMaxMP(1)
-            .SetMeleeAttackPower(270)
-            .SetMeleeDefensePower(160)
-            .SetMagicAttackPower(10)
-            .SetMagicDefensePower(10);
+            .SetBaseValue(Stat.HitPoints, 2500)
+            .SetBaseValue(Stat.MaximumHitPoints, 2500)
+            .SetBaseValue(Stat.ManaPoints, 1)
+            .SetBaseValue(Stat.MaximumManaPoints, 1)
+            .SetBaseValue(Stat.MeleeAttack, 270)
+            .SetBaseValue(Stat.MeleeDefense, 160)
+            .SetBaseValue(Stat.MagicAttack, 10)
+            .SetBaseValue(Stat.MagicDefense, 10);
+
+        statChangeable.Initialize(new StatChangeable.InitializationContext
+        {
+            Identifier = Identifier,
+            stats = Stats,
+            hitAndManaPointsDisplay = null,
+            statChangeDisplay = enemyIStatChangeDisplay,
+            onHitPointsBecomeZero = null
+        });
     }
 
     public void IncreaseEnmity(int playerID, uint amount)
@@ -117,7 +129,13 @@ public class Enemy : Character, IDamageable, IActable, ISelectable
         {
             enmitiesAgainstPlayers.Add(playerID, amount);
         }
-        else enmitiesAgainstPlayers[playerID] += amount;
+        else
+        {
+            var currentEnmity = enmitiesAgainstPlayers[playerID];
+            var remainingValue = uint.MaxValue - currentEnmity;
+            enmitiesAgainstPlayers[playerID] =
+                currentEnmity + (remainingValue > amount ? amount : remainingValue);
+        }
 
         hasEnmityListBeenUpdated = true;
     }
@@ -188,7 +206,7 @@ public class Enemy : Character, IDamageable, IActable, ISelectable
             navMeshAgent.velocity = Vector3.zero;
 
             ActiveBuffEffects.Clear();
-            Stats[Stat.HP] = Stats[Stat.MaxHP];
+            Stats[Stat.HitPoints] = Stats[Stat.MaximumHitPoints];
 
             state = EnemyState.Idling;
             Animator.SetInteger(MovementMode, 0);
@@ -204,7 +222,7 @@ public class Enemy : Character, IDamageable, IActable, ISelectable
             return;
         }
 
-        if (currentTargetIDamageable == null || currentTargetIDamageable.IsDead) return;
+        if (currentTargetStatChangeable == null || currentTargetStatChangeable.HasZeroHitPoints) return;
 
         SqrDistanceFromCurrentTarget = GetSqrDistance(enemyTransform.position, currentTargetTransform.position);
 
@@ -223,7 +241,12 @@ public class Enemy : Character, IDamageable, IActable, ISelectable
                 timePassedSinceReset = 0f;
                 Animator.SetInteger(MovementMode, 0);
                 Animator.SetTrigger(Attack);
-                currentTargetIDamageable.DecreaseStat(Stat.HP, Stats[Stat.MeleeAttackPower], true, false);
+
+                var effectiveDamage =
+                    currentTargetStatChangeable.GetEffectiveDamage(Stats[Stat.MeleeAttack], true,
+                    Utilities.GetRandomFloatFromSineDistribution(0.96f, 1.04f));
+                currentTargetStatChangeable.DecreaseStat(Stat.HitPoints, effectiveDamage);
+                currentTargetStatChangeable.ShowHitPointsChange(effectiveDamage, true, null);
             }
         }
         else
@@ -242,7 +265,7 @@ public class Enemy : Character, IDamageable, IActable, ISelectable
             return;
         }
 
-        if (currentTargetIDamageable == null || currentTargetIDamageable.IsDead) return;
+        if (currentTargetStatChangeable == null || currentTargetStatChangeable.HasZeroHitPoints) return;
 
         SqrDistanceFromCurrentTarget = GetSqrDistance(enemyTransform.position, currentTargetTransform.position);
 
@@ -328,14 +351,14 @@ public class Enemy : Character, IDamageable, IActable, ISelectable
 
     private void UpdateCurrentTarget()
     {
-        if (currentTargetIDamageable.SelfOrNull() != null && currentTargetIDamageable.IsDead)
+        if (currentTargetStatChangeable.SelfOrNull() != null && currentTargetStatChangeable.HasZeroHitPoints)
         {
-            enmitiesAgainstPlayers.Remove(currentTargetIDamageable.Identifier);
+            enmitiesAgainstPlayers.Remove(currentTargetStatChangeable.Identifier);
 
             RecentTarget = CurrentTarget;
             CurrentTarget = null;
             currentTargetTransform = null;
-            currentTargetIDamageable = null;
+            currentTargetStatChangeable = null;
         }
 
         if (!hasEnmityListBeenUpdated || enmitiesAgainstPlayers.Count <= 0)
@@ -348,7 +371,7 @@ public class Enemy : Character, IDamageable, IActable, ISelectable
         if (RecentTarget == CurrentTarget)
             return;
 
-        currentTargetIDamageable = CurrentTarget.GetComponent<IDamageable>();
+        currentTargetStatChangeable = CurrentTarget.GetComponent<StatChangeable>();
 
         hasEnmityListBeenUpdated = false;
     }
@@ -365,7 +388,7 @@ public class Enemy : Character, IDamageable, IActable, ISelectable
         UpdateStatBars();
     }
 
-    public Statistics GetStats()
+    public GameData.Statistics GetStats()
     {
         return Stats;
     }
@@ -374,9 +397,9 @@ public class Enemy : Character, IDamageable, IActable, ISelectable
     {
         if (IsDead) return;
 
-        if (Stats[Stat.HP] > 0f)
+        if (Stats[Stat.HitPoints] > 0f)
         {
-            enemyHPDisplay.UpdateHPBar(Stats[Stat.HP], Stats[Stat.MaxHP]);
+            enemyHPDisplay.UpdateHPBar(Stats[Stat.HitPoints], Stats[Stat.MaximumHitPoints]);
         }
         else
         {
@@ -391,16 +414,16 @@ public class Enemy : Character, IDamageable, IActable, ISelectable
 
         switch (stat)
         {
-            case Stat.HP:
+            case Stat.HitPoints:
                 {
-                    if (Stats[stat] > Stats[Stat.MaxHP])
-                        Stats[stat] = Stats[Stat.MaxHP];
+                    if (Stats[stat] > Stats[Stat.MaximumHitPoints])
+                        Stats[stat] = Stats[Stat.MaximumHitPoints];
                 }
                 break;
-            case Stat.MP:
+            case Stat.ManaPoints:
                 {
-                    if (Stats[stat] > Stats[Stat.MaxMP])
-                        Stats[stat] = Stats[Stat.MaxMP];
+                    if (Stats[stat] > Stats[Stat.MaximumManaPoints])
+                        Stats[stat] = Stats[Stat.MaximumManaPoints];
                 }
                 break;
         }
@@ -412,7 +435,7 @@ public class Enemy : Character, IDamageable, IActable, ISelectable
 
         switch (stat)
         {
-            case Stat.HP:
+            case Stat.HitPoints:
                 {
                     if (Stats[stat] < 0)
                     {
@@ -432,15 +455,15 @@ public class Enemy : Character, IDamageable, IActable, ISelectable
                     if (shouldShowHPChangeDigits)
                     {
                         if (isChangingOverTime)
-                            enemyIStatChangeDisplay.ShowHPChangeOverTime(decrement, true);
+                            enemyIStatChangeDisplay.ShowHitPointsChangeOverTime(decrement, true);
                         else
-                            enemyIStatChangeDisplay.ShowHPChange(decrement, true, null);
+                            enemyIStatChangeDisplay.ShowHitPointsChange(decrement, true, null);
                     }
 
                     UpdateStatBars();
                 }
                 break;
-            case Stat.MP:
+            case Stat.ManaPoints:
                 {
                     if (Stats[stat] < 0)
                         Stats[stat] = 0;

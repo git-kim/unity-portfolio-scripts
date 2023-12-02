@@ -1,27 +1,24 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
-using FluentBuilderPattern;
+using GameData;
+using Characters.Components;
 
 public class CurseSpell : NonSelfTargetedAction
 {
-    #region 버프/디버프 액션용 변수, 프로퍼티
     private readonly int buffID;
-    private bool IsBuffOn { get; set; } // 효과 적용 여부
-    private bool IsActionUnusable { get; set; } // 액션 취하기 가능 여부(효과 중복 적용 방지용)
-    private float EffectTime { get; set; } // 효과 적용 시간
-    #endregion
+    private bool IsBuffOn { get; set; }
+    private bool IsActionUnusable { get; set; }
+    private float EffectTime { get; set; }
 
-    private readonly IDamageable actorIDamageable;
-    private IDamageable targetIDamageable;
+    private readonly StatChangeable actorStatChangeable;
+    private StatChangeable targetStatChangeable;
     private IStatChangeDisplay targetIStatChangeDisplay;
     private Transform targetTransform;
 
-    private MonoBehaviour targetMonoBehaviour;
-
     private readonly ParticleEffectName particleEffectName;
 
-    private int mPCost;
+    private int manaPointsCost;
     private float range;
 
     public CurseSpell(GameObject actor, int buffID)
@@ -36,7 +33,7 @@ public class CurseSpell : NonSelfTargetedAction
         ActorMonoBehaviour = actor.GetComponent<MonoBehaviour>();
         ActorAnimator = actor.GetComponent<Animator>();
         ActorIActable = actor.GetComponent<IActable>();
-        actorIDamageable = actor.GetComponent<IDamageable>();
+        actorStatChangeable = actor.GetComponent<StatChangeable>();
         ActorStats = ActorIActable.Stats;
 
         particleEffectName = ParticleEffectName.CurseDebuff;
@@ -57,13 +54,14 @@ public class CurseSpell : NonSelfTargetedAction
         AfflictWithDebuff();
         targetIStatChangeDisplay.ShowBuffStart(buffID, EffectTime);
 
-        actorIDamageable.DecreaseStat(Stat.MP, mPCost, false, false);
+        actorStatChangeable.DecreaseStat(Stat.ManaPoints, manaPointsCost);
 
-        targetIDamageable.DecreaseStat(Stat.HP, Mathf.RoundToInt(ActorStats[Stat.MaxHP] * 0.004f), false);
-        targetIStatChangeDisplay.ShowHPChange(Mathf.RoundToInt(ActorStats[Stat.MaxHP] * 0.004f), true, in ActionName);
-        targetIDamageable.UpdateStatBars();
+        var effectiveDamage = Mathf.RoundToInt(ActorStats[Stat.MagicAttack] * 0.25f);
+        targetStatChangeable.DecreaseStat(Stat.HitPoints, effectiveDamage);
+        targetIStatChangeDisplay.ShowHitPointsChange(effectiveDamage, true, in ActionName);
 
-        if (targetIDamageable is Enemy enemy && !actorIDamageable.IsDead)
+        if (targetStatChangeable.TryGetComponent<Enemy>(out var enemy)
+            && !actorStatChangeable.HasZeroHitPoints)
         {
             enemy.IncreaseEnmity(actorID, 1);
         }
@@ -81,7 +79,8 @@ public class CurseSpell : NonSelfTargetedAction
 
         yield return new WaitForSeconds(EffectTime - InvisibleGlobalCoolDownTime);
 
-        if (!targetIDamageable.IsDead && targetIDamageable.ActiveBuffEffects.ContainsKey(buffID))
+        if (!targetStatChangeable.HasZeroHitPoints
+            && targetStatChangeable.ActiveStatChangingEffects.ContainsKey(buffID))
             targetIStatChangeDisplay.ShowBuffEnd(buffID);
 
         RemoveDebuff();
@@ -93,14 +92,14 @@ public class CurseSpell : NonSelfTargetedAction
         if (IsActionUnusable)
             return;
 
-        // MP 검사
-        if (mPCost > ActorStats[Stat.MP])
+        // Check Mana Points
+        if (manaPointsCost > ActorStats[Stat.ManaPoints])
         {
-            GameManagerInstance.ShowErrorMessage(0); // MP 부족 메시지 출력
+            GameManagerInstance.ShowErrorMessage(0);
             return;
         }
 
-        // 대상 검사
+        // Check Target
         if (target == null)
         {
             GameManagerInstance.ShowErrorMessage(3);
@@ -109,36 +108,36 @@ public class CurseSpell : NonSelfTargetedAction
 
         this.Target = target;
         targetTransform = target.transform;
-        targetIDamageable = target.GetComponent<IDamageable>();
+        targetStatChangeable = target.GetComponent<StatChangeable>();
 
-        // 추가 검사(대상, 사용자)
-        if (targetIDamageable == null || actorIDamageable.Identifier.Equals(targetIDamageable.Identifier))
+        // Check Others
+        if (targetStatChangeable == null
+            || actorStatChangeable.Identifier.Equals(targetStatChangeable.Identifier))
         {
             GameManagerInstance.ShowErrorMessage(2);
             return;
         }
 
-        if (actorIDamageable.IsDead || targetIDamageable.IsDead)
+        if (actorStatChangeable.HasZeroHitPoints || targetStatChangeable.HasZeroHitPoints)
         {
             return;
         }
 
         range = actionInfo.range;
 
-        // 거리 검사
+        // Check Distance
         if (Vector3.SqrMagnitude(ActorTransform.position - targetTransform.position) > range * range)
         {
-            GameManagerInstance.ShowErrorMessage(1); // 거리 초과 메시지 출력
+            GameManagerInstance.ShowErrorMessage(1);
             return;
         }
 
         CoolDownTime = actionInfo.coolDownTime;
         InvisibleGlobalCoolDownTime = actionInfo.invisibleGlobalCoolDownTime;
-        mPCost = actionInfo.mPCost;
+        manaPointsCost = actionInfo.mPCost;
         ActionName = actionInfo.name;
-        targetMonoBehaviour = target.GetComponent<MonoBehaviour>();
 
-        if (targetMonoBehaviour is Enemy enemy)
+        if (target.TryGetComponent<Enemy>(out var enemy))
             targetIStatChangeDisplay = enemy.EnemyIStatChangeDisplay;
 
         if (!IsBuffOn)
@@ -166,14 +165,15 @@ public class CurseSpell : NonSelfTargetedAction
 
     private void AfflictWithDebuff()
     {
-        if (!targetIDamageable.ActiveBuffEffects.ContainsKey(buffID))
+        if (!targetStatChangeable.ActiveStatChangingEffects.ContainsKey(buffID))
         {
-            targetIDamageable.ActiveBuffEffects.Add(buffID, new KeyValuePair<Stat, int>(Stat.HP, 50));
+            targetStatChangeable.ActiveStatChangingEffects.Add(buffID,
+                new KeyValuePair<Stat, int>(Stat.HitPoints, 40));
         }
     }
 
     private void RemoveDebuff()
     {
-        targetIDamageable.ActiveBuffEffects.Remove(buffID);
+        targetStatChangeable.ActiveStatChangingEffects.Remove(buffID);
     }
 }

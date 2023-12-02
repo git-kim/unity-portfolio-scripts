@@ -3,9 +3,10 @@ using UnityEngine;
 using UnityEngine.Events;
 using System.Linq;
 // using Cinemachine;
-using FluentBuilderPattern;
+using GameData;
+using Characters.Components;
 
-public sealed partial class Player : Character, IDamageable, IActable
+public sealed partial class Player : Character, IActable
 {
     #region 인스펙터 비사용 변수
     private GameManager gameManagerInstance;
@@ -44,14 +45,14 @@ public sealed partial class Player : Character, IDamageable, IActable
     private HPHealAbility hPHealAbility;
     private MPHealAbility mPHealAbility;
 
-    private PlayerHPMPDisplay playerHPMPDisplay;
+    private HitAndManaPointsDisplay playerHPMPDisplay;
 
     private IStatChangeDisplay playerIStatChangeDisplay;
 
     private ISelectable currentTargetISelectable;
-    private IDamageable currentTargetIDamageable;
+    private StatChangeable currentTargetStatChangeable;
 
-    private int playerHPRegen, playerMPRegen;
+    private int autoHitPointsRegeneration, autoManaPointsRegeneration;
 
     private readonly Vector3 forwardRight = (Vector3.forward + Vector3.right).normalized;
 
@@ -66,10 +67,6 @@ public sealed partial class Player : Character, IDamageable, IActable
     // 참고: 프로퍼티는 인스펙터에 나타나지 않는다.
     public Actions ActionCommands => actionCommands;
     public CastingBarDisplay CastingBarDisplay => playerCastingBarDisplay;
-    public Statistics Stats { get; set; }
-
-    public Dictionary<int, KeyValuePair<Stat, int>> ActiveBuffEffects { get; set; } = new Dictionary<int, KeyValuePair<Stat, int>>();
-    public bool IsDead { get; set; } = false;
     public bool IsCasting { get; set; } = false;
     public int ActionToTake { get; set; } = 0;
     public int ActionBeingTaken { get; set; } = 0;
@@ -77,7 +74,11 @@ public sealed partial class Player : Character, IDamageable, IActable
     public float InvisibleGlobalCoolDownTime { get; set; } = 0f;
     public float GlobalCoolDownTime { get; private set; }
     public float SqrDistanceFromCurrentTarget => sqrDistanceFromCurrentTarget;
+
+    public Statistics Stats { get; private set; }
     #endregion
+
+    [SerializeField] private StatChangeable statChangeable;
 
     // Awake: 이 스크립트가 달린 gameObject가 생성되어 활성화하면 (최초 1회) 호출되는 초기화 함수(스크립트 컴포넌트 활성 여부와는 무관하게 호출된다.)
     protected override void Awake()
@@ -127,17 +128,13 @@ public sealed partial class Player : Character, IDamageable, IActable
         CurrentTarget = RecentTarget = null; // 주의: 이 줄이 있어야 오류가 발생하지 않는다.
 
         currentTargetISelectable = null;
-        currentTargetIDamageable = null;
+        currentTargetStatChangeable = null;
 
         audioListenerTransform = gameObject.GetComponentInChildren<AudioListener>().transform;
-
-        SetInitialStats(); // 초기 스탯 설정
 
         actionButtons.Add(null);
         actionButtons.AddRange(Resources.FindObjectsOfTypeAll<ActionButton>());
         actionButtons = actionButtons.Take(1).Concat(actionButtons.Skip(1).OrderBy(btn => btn.actionID)).ToList();
-
-        SetActionCommands(); // 액션 설정
 
         base.Awake(); // 상위 클래스 함수 호출
     }
@@ -150,28 +147,40 @@ public sealed partial class Player : Character, IDamageable, IActable
         onJumpUp.AddListener(playerFeetIK.DisableFeetIK);
         onFall.AddListener(playerFeetIK.DisableFeetIK);
 
-        playerHPMPDisplay = FindObjectOfType<PlayerHPMPDisplay>();
+        playerHPMPDisplay = FindObjectOfType<HitAndManaPointsDisplay>();
         Identifier = gameManagerInstance.AddPlayerAlive(Identifier, playerTransform);
-        gameManagerInstance.onGameTick.AddListener(RegeneratePoints);
+
+        SetInitialStats();
+        SetActionCommands(); // should be called after SetInitialStats()
     }
 
-    /// <summary>
-    /// 초기 스탯을 지정한다.
-    /// </summary>
     private void SetInitialStats()
     {
         Stats = new StatisticsBuilder()
-            .SetHP(10000).SetMaxHP(10000)
-            .SetMP(10000).SetMaxMP(10000)
-            .SetMeleeAttackPower(10)
-            .SetMeleeDefensePower(10)
-            .SetMagicAttackPower(100)
-            .SetMagicDefensePower(100)
-            .SetHPRestoringPower(200)
-            .SetMPRestoringPower(420);
+            .SetBaseValue(Stat.HitPoints, 3000)
+            .SetBaseValue(Stat.MaximumHitPoints, 3000)
+            .SetBaseValue(Stat.ManaPoints, 3000)
+            .SetBaseValue(Stat.MaximumManaPoints, 3000)
+            .SetBaseValue(Stat.MeleeAttack, 10)
+            .SetBaseValue(Stat.MeleeDefense, 10)
+            .SetBaseValue(Stat.MagicAttack, 100)
+            .SetBaseValue(Stat.MagicDefense, 100)
+            .SetBaseValue(Stat.HitPointsRestorability, 200)
+            .SetBaseValue(Stat.ManaPointsRestorability, 420);
 
-        playerHPRegen = (int)(Stats[Stat.MaxHP] * 0.008f);
-        playerMPRegen = (int)(Stats[Stat.MaxHP] * 0.025f);
+        autoHitPointsRegeneration = (int)(Stats[Stat.MaximumHitPoints] * 0.008f);
+        autoManaPointsRegeneration = (int)(Stats[Stat.MaximumHitPoints] * 0.025f);
+
+        statChangeable.Initialize(new StatChangeable.InitializationContext
+        {
+            Identifier = Identifier,
+            stats = Stats,
+            hitAndManaPointsDisplay = playerHPMPDisplay,
+            statChangeDisplay = playerIStatChangeDisplay,
+            onHitPointsBecomeZero = onDie.Invoke
+        });
+
+        gameManagerInstance.onGameTick.AddListener(RegenerateStatPoints);
     }
 
     /// <summary>
@@ -214,29 +223,30 @@ public sealed partial class Player : Character, IDamageable, IActable
     /// <summary>
     /// HP, MP를 자연히 회복한다.
     /// </summary>
-    void RegeneratePoints()
+    void RegenerateStatPoints()
     {
-        if (IsDead) return;
+        if (statChangeable.HasZeroHitPoints) return;
 
         if (Animator.GetBool(BattlePoseOn))
         {
-            IncreaseStat(Stat.HP, (int)(playerHPRegen * Random.Range(0.4f, 0.6f)), false);
-            IncreaseStat(Stat.MP, (int)(playerMPRegen * Random.Range(0.4f, 0.6f)), false);
+            statChangeable.IncreaseStat(Stat.HitPoints, (int)(autoHitPointsRegeneration * Random.Range(0.4f, 0.6f)));
+            statChangeable.IncreaseStat(Stat.ManaPoints, (int)(autoManaPointsRegeneration * Random.Range(0.4f, 0.6f)));
         }
         else
         {
-            IncreaseStat(Stat.HP, (int)(playerHPRegen * Random.Range(0.9f, 1.1f)), false);
-            IncreaseStat(Stat.MP, (int)(playerMPRegen * Random.Range(0.9f, 1.1f)), false);
+            statChangeable.IncreaseStat(Stat.HitPoints, (int)(autoHitPointsRegeneration * Random.Range(0.9f, 1.1f)));
+            statChangeable.IncreaseStat(Stat.ManaPoints, (int)(autoManaPointsRegeneration * Random.Range(0.9f, 1.1f)));
         }
 
         if (hPHealAbility.IsBuffOn)
         {
-            IncreaseStat(Stat.HP, Stats[Stat.HPRestoringPower], true);
+            statChangeable.IncreaseStat(Stat.HitPoints, Stats[Stat.HitPointsRestorability]);
+            statChangeable.ShowHitPointsChange(Stats[Stat.HitPointsRestorability], false, null);
         }
 
         if (mPHealAbility.IsBuffOn)
         {
-            IncreaseStat(Stat.MP, Stats[Stat.MPRestoringPower], true);
+            statChangeable.IncreaseStat(Stat.ManaPoints, Stats[Stat.ManaPointsRestorability]);
         }
     }
 }

@@ -1,6 +1,6 @@
 ﻿using System.Linq;
 using UnityEngine;
-using FluentBuilderPattern;
+using GameData;
 
 public class GlobalCoolDownActionButton : ActionButton
 {
@@ -46,7 +46,7 @@ public class GlobalCoolDownActionButton : ActionButton
         if (mPCost == 0 || sqrRange == 0f) return;
 
         // MP 검사
-        if (Player.Stats[Stat.MP] < mPCost)
+        if (Player.Stats[Stat.ManaPoints] < mPCost)
         {
             mPCostIndicator.effectColor = UnusablenessColor;
             return;

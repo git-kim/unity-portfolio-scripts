@@ -1,5 +1,5 @@
 ﻿using UnityEngine;
-using FluentBuilderPattern;
+using GameData;
 using CommandPattern;
 
 public abstract class NonSelfTargetedAction: ICommand
@@ -16,7 +16,7 @@ public abstract class NonSelfTargetedAction: ICommand
     protected MonoBehaviour ActorMonoBehaviour;
     protected IActable ActorIActable;
     protected Animator ActorAnimator;
-    protected Statistics ActorStats;
+    protected GameData.Statistics ActorStats;
     protected Transform ActorTransform;
     // protected Actions ActorActionCommands;
 

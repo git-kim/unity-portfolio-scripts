@@ -1,20 +1,17 @@
 ﻿using UnityEngine;
 using System.Collections;
-using FluentBuilderPattern;
+using GameData;
+using Characters.Components;
 
 public class HPHealAbility : SelfBuffingAction
 {
     private readonly GameManager gameManagerInstance = GameManager.Instance;
-    private int mPCost;
+    private int manaPointsCost;
     private readonly Statistics actorStats;
-    private readonly IDamageable actorIDamageable;
+    private readonly StatChangeable actorStatChangeable;
 
     private string actionName;
 
-    //// 캐스팅 시간
-    //public float CastTime { get; protected set; }
-
-    // 캐스팅 후 애니메이션 또는 파티클 효과 재생 시간
     private float InvisibleGlobalCoolDownTime { get; set; }
 
     public HPHealAbility(GameObject actor, int buffID, IStatChangeDisplay actorIStatChangeDisplay)
@@ -29,19 +26,19 @@ public class HPHealAbility : SelfBuffingAction
         ActorMonoBehaviour = actor.GetComponent<MonoBehaviour>();
         ActorAnim = actor.GetComponent<Animator>();
         ActorIActable = actor.GetComponent<IActable>();
-        actorIDamageable = actor.GetComponent<IDamageable>();
+        actorStatChangeable = actor.GetComponent<StatChangeable>();
         actorStats = ActorIActable.Stats;
         this.ActorIStatChangeDisplay = actorIStatChangeDisplay;
 
         ParticleEffectName = ParticleEffectName.HealHP;
     }
 
-    /// <summary>
-    /// Execute 함수에서 호출되는 함수이다. toDirection이 Vector3.zero로 지정되면 회전 값이 변경되지 않는다.
-    /// </summary>
-    private IEnumerator TakeAction(int actionID, ParticleEffectName particleEffectName, Transform targetTransform, Vector3 localPosition, Vector3 toDirection, Vector3 localScale, bool shouldEffectFollowTarget = true)
+    private IEnumerator TakeAction(int actionID, ParticleEffectName particleEffectName,
+        Transform targetTransform, Vector3 localPosition,
+        Vector3 toDirection, Vector3 localScale, bool shouldEffectFollowTarget = true)
     {
-        ActorAnim.SetInteger(ActionMode, actionID); // ActionMode에 actionID 값을 저장한다(애니메이션 시작).
+        ActorAnim.SetInteger(ActionMode, actionID);
+
         ActorIActable.ActionBeingTaken = actionID;
 
         ActorIActable.VisibleGlobalCoolDownTime = CoolDownTime;
@@ -50,9 +47,11 @@ public class HPHealAbility : SelfBuffingAction
         IsActionUnusable = IsBuffOn = true;
         ActorIStatChangeDisplay.ShowBuffStart(BuffID, EffectTime);
 
-        actorStats[Stat.MP] -= mPCost;
-        actorIDamageable.IncreaseStat(Stat.HP, Mathf.RoundToInt(actorStats[Stat.MaxHP] * 0.04f), false);
-        ActorIStatChangeDisplay.ShowHPChange(Mathf.RoundToInt(actorStats[Stat.MaxHP] * 0.04f), false, in actionName);
+        actorStatChangeable.DecreaseStat(Stat.ManaPoints, manaPointsCost);
+
+        var hitPointsIncrement = Mathf.RoundToInt(actorStats[Stat.MaximumHitPoints] * 0.04f);
+        actorStatChangeable.IncreaseStat(Stat.HitPoints, hitPointsIncrement);
+        ActorIStatChangeDisplay.ShowHitPointsChange(hitPointsIncrement, false, in actionName);
 
         if (particleEffectName != ParticleEffectName.None)
             NonPooledParticleEffectManager.Instance.PlayParticleEffect(particleEffectName, targetTransform, localPosition, toDirection, localScale, 1f, shouldEffectFollowTarget);
@@ -60,7 +59,7 @@ public class HPHealAbility : SelfBuffingAction
         yield return new WaitForSeconds(InvisibleGlobalCoolDownTime);
 
         if (ActorAnim.GetInteger(ActionMode) == actionID)
-            ActorAnim.SetInteger(ActionMode, 0); // ActionMode 값을 초기화한다.
+            ActorAnim.SetInteger(ActionMode, 0);
 
         ActorIActable.ActionBeingTaken = 0;
         IsActionUnusable = false;
@@ -76,27 +75,24 @@ public class HPHealAbility : SelfBuffingAction
         if (IsActionUnusable)
             return;
 
-        // MP 검사
-        if (mPCost > actorStats[Stat.MP])
+        // Check Mana Points
+        if (manaPointsCost > actorStats[Stat.ManaPoints])
         {
-            gameManagerInstance.ShowErrorMessage(0); // MP 부족 메시지 출력
+            gameManagerInstance.ShowErrorMessage(0);
             return;
         }
 
         CoolDownTime = actionInfo.coolDownTime;
-        //CastTime = actionInfo.castTime;
         InvisibleGlobalCoolDownTime = actionInfo.invisibleGlobalCoolDownTime;
-        mPCost = actionInfo.mPCost;
+        manaPointsCost = actionInfo.mPCost;
         actionName = actionInfo.name;
 
-        if (!IsBuffOn)
-            CurrentActionCoroutine = ActorMonoBehaviour.StartCoroutine(TakeAction(actionInfo.id, ParticleEffectName, ActorTransform, Vector3.up * 0.1f, Vector3.zero, Vector3.one));
-        else
-        {
-            if (CurrentActionCoroutine != null)
-                ActorMonoBehaviour.StopCoroutine(CurrentActionCoroutine);
-            CurrentActionCoroutine = ActorMonoBehaviour.StartCoroutine(TakeAction(actionInfo.id, ParticleEffectName, ActorTransform, Vector3.up * 0.1f, Vector3.zero, Vector3.one));
-        }
+        if (IsBuffOn && CurrentActionCoroutine != null)
+            ActorMonoBehaviour.StopCoroutine(CurrentActionCoroutine);
+
+        CurrentActionCoroutine = ActorMonoBehaviour.StartCoroutine(
+            TakeAction(actionInfo.id, ParticleEffectName, ActorTransform,
+            Vector3.up * 0.1f, Vector3.zero, Vector3.one));
     }
 
     public override void Stop()

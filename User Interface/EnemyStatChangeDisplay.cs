@@ -88,7 +88,7 @@ public class EnemyStatChangeDisplay : MonoBehaviour, IStatChangeDisplay
         obj.SetActive(true);
     }
 
-    public void ShowHPChange(int change, bool isDecrement, in string actionName)
+    public void ShowHitPointsChange(int change, bool isDecrement, in string actionName)
     {
         if (!isDecrement) return;
         // 참고: 회복 prefab은 만들지 않았다.
@@ -109,7 +109,7 @@ public class EnemyStatChangeDisplay : MonoBehaviour, IStatChangeDisplay
         obj.SetActive(true);
     }
 
-    public void ShowHPChangeOverTime(int change, bool isDecrement = false)
+    public void ShowHitPointsChangeOverTime(int change, bool isDecrement = false)
     {
         if (!isDecrement) return;
         // 참고: 회복 prefab은 만들지 않았다.

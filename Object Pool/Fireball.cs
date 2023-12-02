@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using UnityEngine;
-using FluentBuilderPattern;
+using GameData;
+using Characters.Components;
 
 public class Fireball : MonoBehaviour, IPoolable
 {
@@ -10,11 +11,9 @@ public class Fireball : MonoBehaviour, IPoolable
     public GameObject impactParticle;
     private string actionName;
 
-    [Tooltip("발사체 총 이동 시간")] [SerializeField]
-    private float totalTravelTime = 0.7f;
+    [SerializeField] private float totalTravelTime = 0.7f;
 
-    [Tooltip("도착 지점 위치 오프셋(y 축 방향)")] [SerializeField]
-    private float destinationOffsetY = 0.5f;
+    [SerializeField] private float destinationOffsetY = 0.5f;
 
     private float muzzleEffectLifetime;
     private float impactEffectLifetime;
@@ -22,8 +21,7 @@ public class Fireball : MonoBehaviour, IPoolable
     private float currentTravelTime;
     private bool hasArrived = false;
 
-    // Statistics targetStats;
-    private IDamageable targetIDamageable;
+    private StatChangeable targetStatChangeable;
     private int damageToTarget;
 
     private ParticleSystem muzzleParticleSystem, impactParticleSystem;
@@ -77,13 +75,13 @@ public class Fireball : MonoBehaviour, IPoolable
     public void SetTarget(GameObject target)
     {
         this.target = target; // GameObject.Find("Enemy");
-        targetController = this.target.GetComponent<CharacterController>();
+        targetController = target.GetComponent<CharacterController>();
 
         // targetStats = target.GetComponent<IActable>().GetStats();
-        targetIDamageable = target.GetComponent<IDamageable>();
+        targetStatChangeable = target.GetComponent<StatChangeable>();
 
         if (targetController == null)
-            Debug.LogError("대상에 CharacterController가 없습니다.");
+            Debug.LogError("Target CharacterController not found.");
     }
 
     public void Fire(int damageToTarget, in string actionName)
@@ -118,34 +116,7 @@ public class Fireball : MonoBehaviour, IPoolable
 
         if (currentTravelTime >= totalTravelTime)
         {
-            impactParticle.transform.position = projectileParticle.transform.position;
-            impactParticleSystem.Simulate(0.0f, true, true);
-            impactParticle.SetActive(true);
-
-            //targetStats[Stat.hP] -= damageToTarget;
-            //if (targetStats[Stat.hP] < 0)
-            //    targetStats[Stat.hP] = 0;
-
-            int damage = Mathf.RoundToInt(damageToTarget * Utilities.GetRandomFloatFromSineDistribution(0.96f, 1.04f));
-            targetIDamageable.DecreaseStat(Stat.HP, damage);
-            targetIDamageable.UpdateStatBars();
-
-            // 피해량 출력 처리(switch 패턴 매칭 사용)
-            switch (targetIDamageable)
-            {
-                case Enemy en:
-                    en.EnemyIStatChangeDisplay.ShowHPChange(damage, true, actionName);
-                    break;
-                case Player pl:
-                    pl.PlayerIStatChangeDisplay.ShowHPChange(damage, true, actionName);
-                    break;
-            }
-
-            StartCoroutine(DisableAfterWaiting(impactEffectLifetime, impactParticle));
-
-            projectileParticle.SetActive(false);
-
-            StartCoroutine(DisableAfterWaiting(impactEffectLifetime, gameObject));
+            OnTravelDone();
             return;
         }
 
@@ -154,25 +125,54 @@ public class Fireball : MonoBehaviour, IPoolable
         if (hasArrived)
             return;
 
-        // 도착 지점을 갱신한다.(피격 대상이 이동하였을 수 있으므로)
-        var targetTransform = targetController.transform;
-        destination = targetTransform.position + Vector3.Scale(targetTransform.localScale, targetController.center) + Vector3.up * destinationOffsetY;
+        UpdatePositionAndRotation();
+    }
 
-        // 이차 베지에이 곡선 계산용 변수를 갱신한다.(임의 위치 적용)
+    private void OnTravelDone()
+    {
+        impactParticle.transform.position = projectileParticle.transform.position;
+        impactParticleSystem.Simulate(0.0f, true, true);
+        impactParticle.SetActive(true);
+
+        if (targetStatChangeable)
+        {
+            var effectiveDamage =
+                targetStatChangeable.GetEffectiveDamage(damageToTarget, false,
+                Utilities.GetRandomFloatFromSineDistribution(0.96f, 1.04f));
+            targetStatChangeable.DecreaseStat(Stat.HitPoints, effectiveDamage);
+            targetStatChangeable.ShowHitPointsChange(effectiveDamage, true, actionName);
+        }
+
+        StartCoroutine(DisableAfterWaiting(impactEffectLifetime, impactParticle));
+
+        projectileParticle.SetActive(false);
+
+        StartCoroutine(DisableAfterWaiting(impactEffectLifetime, gameObject));
+    }
+
+    private void UpdatePositionAndRotation()
+    {
+        var targetTransform = targetController.transform;
+        destination = targetTransform.position
+            + Vector3.Scale(targetTransform.localScale, targetController.center)
+            + Vector3.up * destinationOffsetY;
+
         middlePosition = (origin + destination) * 0.5f + Vector3.up;
 
-        // 이차 베지에이 곡선에서 다음 위치를 받아와서 갱신한다.
-        nextPosition = Utilities.GetQuadraticBezierPoint(ref origin, ref middlePosition, ref destination, currentTravelTime * reciprocalTotalTravelTime);
+        nextPosition = Utilities.GetQuadraticBezierPoint(ref origin,
+            ref middlePosition, ref destination,
+            currentTravelTime * reciprocalTotalTravelTime);
 
-        if (targetController.bounds.Contains(nextPosition)) // 다음 위치가 targetCC 안이면
+        if (targetController.bounds.Contains(nextPosition))
         {
             hasArrived = true;
 
             currentPosition = sphereCollider.transform.position + sphereCollider.center;
 
             projectileParticle.transform.position = nextPosition;
-            impactParticle.transform.position = projectileParticle.transform.position;
-            impactParticle.transform.rotation = Quaternion.FromToRotation(Vector3.forward, currentPosition - nextPosition);
+            impactParticle.transform.position = nextPosition;
+            impactParticle.transform.rotation =
+                Quaternion.FromToRotation(Vector3.forward, currentPosition - nextPosition);
         }
         else
         {

@@ -1,4 +1,4 @@
-﻿using FluentBuilderPattern;
+﻿using GameData;
 
 public interface IActable
 {
@@ -16,5 +16,5 @@ public interface IActable
 
     Actions ActionCommands { get; }
 
-    Statistics Stats { get; set; }
+    GameData.Statistics Stats { get; }
 }

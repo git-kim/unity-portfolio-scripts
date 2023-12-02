@@ -1,8 +1,9 @@
 ﻿using System.Collections;
 using UnityEngine;
-using FluentBuilderPattern;
+using GameData;
+using Characters.Components;
 
-public sealed partial class Player : Character, IDamageable, IActable
+public sealed partial class Player : Character, IActable
 {
     private static readonly int Dead = Animator.StringToHash("Dead");
     private static readonly int BattlePoseOn = Animator.StringToHash("Battle Pose On");
@@ -13,6 +14,8 @@ public sealed partial class Player : Character, IDamageable, IActable
     private static readonly int IdleTimeout = Animator.StringToHash("Idle Timeout");
     private static readonly int Idle2On = Animator.StringToHash("Idle2 On");
     private static readonly int LandMode = Animator.StringToHash("LandMode");
+
+    public bool IsDead => statChangeable.HasZeroHitPoints;
 
     #region 코루틴
     IEnumerator CannotMoveDuring(float time, System.Action voidCallback)
@@ -39,7 +42,7 @@ public sealed partial class Player : Character, IDamageable, IActable
 
     protected override void FixedUpdate()
     {
-        if (gameManagerInstance.State == GameState.Over || IsDead)
+        if (gameManagerInstance.State == GameState.Over || statChangeable.HasZeroHitPoints)
             return;
 
         UpdateGlobalCoolDownTime();
@@ -71,7 +74,7 @@ public sealed partial class Player : Character, IDamageable, IActable
             DeselectTarget();
         }
 
-        if (CurrentTarget != null && currentTargetIDamageable.IsDead)
+        if (CurrentTarget != null && currentTargetStatChangeable.HasZeroHitPoints)
         {
             DeselectTarget();
         }
@@ -81,12 +84,12 @@ public sealed partial class Player : Character, IDamageable, IActable
 
     protected override void Update()
     {
-        if (gameManagerInstance.State != GameState.Over && !IsDead)
+        if (gameManagerInstance.State != GameState.Over && !statChangeable.HasZeroHitPoints)
             ChangePoseIfApplicable();
 
         Locomote();
 
-        if (gameManagerInstance.State != GameState.Over && !IsDead)
+        if (gameManagerInstance.State != GameState.Over && !statChangeable.HasZeroHitPoints)
             Act();
     }
 
@@ -187,7 +190,7 @@ public sealed partial class Player : Character, IDamageable, IActable
     /// </summary>
     private void Locomote()
     {
-        if (!IsDead)
+        if (!statChangeable.HasZeroHitPoints)
             GetMovementDirection();
 
         bool hasBeenInTheAir = Animator.GetBool(InTheAir);
@@ -196,14 +199,14 @@ public sealed partial class Player : Character, IDamageable, IActable
 
         if (hasBeenInTheAir)
         {
-            if (IsNotInTheAir && !IsDead)
+            if (IsNotInTheAir && !statChangeable.HasZeroHitPoints)
                 onLand.Invoke(); // 착지 시작
         }
         else
         {
             if (IsNotInTheAir)
             {
-                if (keyManagerInstance.Jump && IsAbleToMove && !IsDead)
+                if (keyManagerInstance.Jump && IsAbleToMove && !statChangeable.HasZeroHitPoints)
                 {
                     onJumpUp.Invoke(); // 도약 시작
                 }
@@ -216,7 +219,7 @@ public sealed partial class Player : Character, IDamageable, IActable
                     CalculateLocomotionSpeed();
                 }
             }
-            else if  (!IsDead)
+            else if  (!statChangeable.HasZeroHitPoints)
             {
                 if (Animator.GetFloat(YSpeed) <= -2f)
                     onFall.Invoke(); // 낙하 시작
@@ -422,81 +425,10 @@ public sealed partial class Player : Character, IDamageable, IActable
         StartCoroutine(EndGame());
     }
 
-    public void UpdateStatBars()
-    {
-        playerHPMPDisplay.UpdateHPBar(Stats[Stat.HP], Stats[Stat.MaxHP]);
-        playerHPMPDisplay.UpdateMPBar(Stats[Stat.MP], Stats[Stat.MaxMP]);
-    }
-
-    public void IncreaseStat(Stat stat, int increment, bool shouldShowHPChangeDigits, bool additionalOption = false)
-    {
-        Stats[stat] += increment;
-
-        switch (stat)
-        {
-            case Stat.HP:
-                {
-                    if (Stats[stat] > Stats[Stat.MaxHP])
-                        Stats[stat] = Stats[Stat.MaxHP];
-
-                    if (shouldShowHPChangeDigits)
-                        playerIStatChangeDisplay.ShowHPChange(increment, false, null);
-
-                    playerHPMPDisplay.UpdateHPBar(Stats[Stat.HP], Stats[Stat.MaxHP]);
-                }
-                break;
-            case Stat.MP:
-                {
-                    if (Stats[stat] > Stats[Stat.MaxMP])
-                        Stats[stat] = Stats[Stat.MaxMP];
-
-                    playerHPMPDisplay.UpdateMPBar(Stats[Stat.MP], Stats[Stat.MaxMP]);
-                }
-                break;
-        }
-    }
-
-    public void DecreaseStat(Stat stat, int decrement, bool shouldShowHPChangeDigits, bool additionalOption = false)
-    {
-        Stats[stat] -= decrement;
-
-        switch (stat)
-        {
-            case Stat.HP:
-                {
-                    if (Stats[stat] < 0)
-                    {
-                        Stats[stat] = 0;
-                        if (!IsDead)
-                        {
-                            IsDead = true;
-                            Stats[Stat.MP] = 0;
-                            playerHPMPDisplay.UpdateMPBar(Stats[Stat.MP], Stats[Stat.MaxMP]);
-                            onDie.Invoke();
-                        }
-                    }
-
-                    if (shouldShowHPChangeDigits)
-                        playerIStatChangeDisplay.ShowHPChange(decrement, true, null);
-
-                    playerHPMPDisplay.UpdateHPBar(Stats[Stat.HP], Stats[Stat.MaxHP]);
-                }
-                break;
-            case Stat.MP:
-                {
-                    if (Stats[stat] < 0)
-                        Stats[stat] = 0;
-
-                    playerHPMPDisplay.UpdateMPBar(Stats[Stat.MP], Stats[Stat.MaxMP]);
-                }
-                break;
-        }
-    }
-
     public void SelectTarget(GameObject gO)
     {
-        currentTargetIDamageable = gO.GetComponent<IDamageable>();
-        if (currentTargetIDamageable.IsDead)
+        currentTargetStatChangeable = gO.GetComponent<StatChangeable>();
+        if (currentTargetStatChangeable.HasZeroHitPoints)
             return;
 
         CurrentTarget = gO;
@@ -512,6 +444,6 @@ public sealed partial class Player : Character, IDamageable, IActable
         currentTargetISelectable.TargetIndicator.Disable();
         CurrentTarget = null;
         currentTargetISelectable = null;
-        currentTargetIDamageable = null;
+        currentTargetStatChangeable = null;
     }
 }

@@ -72,7 +72,7 @@ public class PlayerStatChangeDisplay : MonoBehaviour, IStatChangeDisplay
         playerBuffInfoDisplay.AddBuffToDisplay(buffID, effectTime);
     }
 
-    public void ShowHPChange(int change, bool isDecrement, in string actionName)
+    public void ShowHitPointsChange(int change, bool isDecrement, in string actionName)
     {
         var obj = objectPoolManagerInstance.SpawnObjectFromPool(!isDecrement ?
                 "HPRestorationPlayer" : "DamagePlayer",
@@ -91,7 +91,7 @@ public class PlayerStatChangeDisplay : MonoBehaviour, IStatChangeDisplay
         obj.SetActive(true);
     }
 
-    public void ShowHPChangeOverTime(int change, bool isDecrement = false)
+    public void ShowHitPointsChangeOverTime(int change, bool isDecrement = false)
     {
         // 필요하지 않아 빈 상태로 두었다.
     }
