@@ -4,9 +4,9 @@
 
     void ShowHitPointsChangeOverTime(int change, bool isDecrement = false);
 
-    void ShowBuffStart(int buffID, float effectTime);
+    void ShowBuffStart(int buffIdentifier, float effectTime);
 
-    void ShowBuffEnd(int buffID);
+    void ShowBuffEnd(int buffIdentifier);
 
     void RemoveAllDisplayingBuffs();
 }

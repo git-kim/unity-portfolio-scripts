@@ -8,24 +8,21 @@ public class HitPointsHealingAbility : SelfBuffingAction
     private readonly GameManager gameManagerInstance = GameManager.Instance;
     private int manaPointsCost;
     private readonly Statistics actorStats;
-    private readonly StatChangeHandler actorStatChangeHandler;
 
     private string actionName;
 
     private float InvisibleGlobalCoolDownTime { get; set; }
 
-    public HitPointsHealingAbility(GameObject actor, int buffID, IStatChangeDisplay actorIStatChangeDisplay)
+    public HitPointsHealingAbility(GameObject actor, int buffIdentifier, IStatChangeDisplay actorIStatChangeDisplay)
     {
-        BuffID = buffID;
-        EffectTime = gameManagerInstance.Buffs[buffID].effectTime;
-
-        IsBuffOn = false;
+        BuffID = buffIdentifier;
+        EffectTime = gameManagerInstance.Buffs[buffIdentifier].effectTime;
 
         ActorTransform = actor.transform;
         ActorMonoBehaviour = actor.GetComponent<MonoBehaviour>();
         ActorAnim = actor.GetComponent<Animator>();
         ActorActionHandler = actor.GetComponent<CharacterActionHandler>();
-        actorStatChangeHandler = actor.GetComponent<StatChangeHandler>();
+        ActorStatChangeHandler = actor.GetComponent<StatChangeHandler>();
         actorStats = ActorActionHandler.Stats;
         this.ActorIStatChangeDisplay = actorIStatChangeDisplay;
 
@@ -43,14 +40,22 @@ public class HitPointsHealingAbility : SelfBuffingAction
         ActorActionHandler.VisibleGlobalCoolDownTime = CoolDownTime;
         ActorActionHandler.InvisibleGlobalCoolDownTime = InvisibleGlobalCoolDownTime;
 
-        IsActionUnusable = IsBuffOn = true;
+        IsActionUnusable = true;
         ActorIStatChangeDisplay.ShowBuffStart(BuffID, EffectTime);
 
-        actorStatChangeHandler.DecreaseStat(Stat.ManaPoints, manaPointsCost);
+        ActorStatChangeHandler.DecreaseStat(Stat.ManaPoints, manaPointsCost);
 
         var hitPointsIncrement = Mathf.RoundToInt(actorStats[Stat.MaximumHitPoints] * 0.04f);
-        actorStatChangeHandler.IncreaseStat(Stat.HitPoints, hitPointsIncrement);
+        ActorStatChangeHandler.IncreaseStat(Stat.HitPoints, hitPointsIncrement);
         ActorIStatChangeDisplay.ShowHitPointsChange(hitPointsIncrement, false, in actionName);
+
+        ActorStatChangeHandler.AddStatChangingEffect(BuffID,
+            new StatChangeHandler.StatChangingEffectData
+            {
+                type = StatChangeHandler.StatChangingEffectType.AppliedPerTick,
+                stat = Stat.HitPoints,
+                value = actorStats[Stat.HitPointsRestorability]
+            });
 
         if (particleEffectName != ParticleEffectName.None)
             NonPooledParticleEffectManager.Instance.PlayParticleEffect(particleEffectName, targetTransform, localPosition, toDirection, localScale, 1f, shouldEffectFollowTarget);
@@ -65,8 +70,8 @@ public class HitPointsHealingAbility : SelfBuffingAction
 
         yield return new WaitForSeconds(EffectTime - InvisibleGlobalCoolDownTime);
 
+        ActorStatChangeHandler.RemoveStatChangingEffect(BuffID);
         ActorIStatChangeDisplay.ShowBuffEnd(BuffID);
-        IsBuffOn = false;
     }
 
     public override void Execute(int actorID, GameObject target, CharacterAction actionInfo)
@@ -100,7 +105,7 @@ public class HitPointsHealingAbility : SelfBuffingAction
 
         if (CurrentActionCoroutine != null)
         {
-            IsBuffOn = false;
+            ActorStatChangeHandler.RemoveStatChangingEffect(BuffID);
             ActorMonoBehaviour.StopCoroutine(CurrentActionCoroutine);
             CurrentActionCoroutine = null;
         }

@@ -27,26 +27,23 @@ public class GlobalCoolDownActionButton : ActionButton
 
     private void Start()
     {
-        if (!HasPlayerVariablesBeenSet)
-            SetPlayerVariables();
-
-        manaPointsCost = PlayerActionCommands[actionID].manaPointsCost;
-        sqrRange = Mathf.Pow(PlayerActionCommands[actionID].range, 2f);
+        manaPointsCost = playerActionHandler.CharacterActions[actionID].manaPointsCost;
+        sqrRange = Mathf.Pow(playerActionHandler.CharacterActions[actionID].range, 2f);
     }
 
     public sealed override void React()
     {
-        coolDownTimeIndicator.Set(Player.VisibleGlobalCoolDownTime / Player.GlobalCoolDownTime, false);
+        coolDownTimeIndicator.Set(playerActionHandler.VisibleGlobalCoolDownTime / playerActionHandler.GlobalCoolDownTime, false);
         if (gameManagerInstance.State != GameState.Running) disablenessIndicator.Enable();
-        else if (Player.VisibleGlobalCoolDownTime <= 0f) disablenessIndicator.Disable();
+        else if (playerActionHandler.VisibleGlobalCoolDownTime <= 0f) disablenessIndicator.Disable();
     }
 
     public sealed override void React2()
     {
         if (manaPointsCost == 0 || sqrRange == 0f) return;
 
-        // MP 검사
-        if (Player.Stats[Stat.ManaPoints] < manaPointsCost)
+        // Check Mana Points
+        if (playerActionHandler.Stats[Stat.ManaPoints] < manaPointsCost)
         {
             manaPointsCostIndicator.effectColor = UnusablenessColor;
             return;
@@ -54,8 +51,8 @@ public class GlobalCoolDownActionButton : ActionButton
 
         manaPointsCostIndicator.effectColor = UsablenessColor;
 
-        // 거리 검사
-        if (Player.SqrDistanceFromCurrentTarget > sqrRange)
+        // Check Distance
+        if (playerActionHandler.SqrDistanceFromCurrentTarget > sqrRange)
         {
             manaPointsCostIndicator.effectColor = UnusablenessColor;
             return;

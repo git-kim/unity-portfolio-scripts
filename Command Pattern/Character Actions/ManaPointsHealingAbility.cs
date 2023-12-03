@@ -1,43 +1,36 @@
 ﻿using UnityEngine;
 using System.Collections;
 using Characters.Handlers;
+using GameData;
 
 public class ManaPointsHealingAbility : SelfBuffingAction
 {
     private readonly GameManager gameManagerInstance = GameManager.Instance;
 
-    // 캐스팅 시간
     public float CastTime { get; protected set; }
-
-    // 캐스팅 후 애니메이션 또는 파티클 효과 재생 시간
     private float InvisibleGlobalCoolDownTime { get; set; }
 
     private readonly OffGlobalCoolDownActionButton button;
 
-    public ManaPointsHealingAbility(GameObject actor, int buffID, OffGlobalCoolDownActionButton button, IStatChangeDisplay actorIStatChangeDisplay)
+    public ManaPointsHealingAbility(GameObject actor, int buffIdentifier, OffGlobalCoolDownActionButton button, IStatChangeDisplay actorIStatChangeDisplay)
     {
-        BuffID = buffID;
-        EffectTime = gameManagerInstance.Buffs[buffID].effectTime;
+        BuffID = buffIdentifier;
+        EffectTime = gameManagerInstance.Buffs[buffIdentifier].effectTime;
 
-        IsBuffOn = false;
         IsActionUnusable = false;
 
         ActorTransform = actor.transform;
         ActorMonoBehaviour = actor.GetComponent<MonoBehaviour>();
         ActorAnim = actor.GetComponent<Animator>();
         ActorActionHandler = actor.GetComponent<CharacterActionHandler>();
-        //actorIDamageable = actor.GetComponent<IDamageable>();
-        //actorStats = actorIActable.Stats;
         ActorIStatChangeDisplay = actorIStatChangeDisplay;
+        ActorStatChangeHandler = actor.GetComponent<StatChangeHandler>();
 
         this.button = button;
 
         ParticleEffectName = ParticleEffectName.HealMP;
     }
 
-    /// <summary>
-    /// Execute 함수에서 호출되는 함수이다. toDirection이 Vector3.zero로 지정되면 회전 값이 변경되지 않는다.
-    /// </summary>
     private IEnumerator TakeAction(int actionID, ParticleEffectName particleEffectName, Transform targetTransform, Vector3 localPosition, Vector3 toDirection, Vector3 localScale, bool shouldEffectFollowTarget = true)
     {
         //if (IsActionUnusable)
@@ -48,9 +41,16 @@ public class ManaPointsHealingAbility : SelfBuffingAction
 
         ActorActionHandler.InvisibleGlobalCoolDownTime = InvisibleGlobalCoolDownTime;
 
-        IsActionUnusable = IsBuffOn = true;
+        IsActionUnusable = true;
         button.StartCoolDown();
         ActorIStatChangeDisplay.ShowBuffStart(BuffID, EffectTime);
+        ActorStatChangeHandler.AddStatChangingEffect(BuffID,
+            new StatChangeHandler.StatChangingEffectData
+            {
+                type = StatChangeHandler.StatChangingEffectType.AppliedPerTick,
+                stat = Stat.ManaPoints,
+                value = ActorActionHandler.Stats[Stat.ManaPointsRestorability]
+            });
 
         if (particleEffectName != ParticleEffectName.None)
             NonPooledParticleEffectManager.Instance.PlayParticleEffect(particleEffectName, targetTransform, localPosition, toDirection, localScale, 1f, shouldEffectFollowTarget);
@@ -64,8 +64,8 @@ public class ManaPointsHealingAbility : SelfBuffingAction
 
         yield return new WaitForSeconds(EffectTime - InvisibleGlobalCoolDownTime);
 
+        ActorStatChangeHandler.RemoveStatChangingEffect(BuffID);
         ActorIStatChangeDisplay.ShowBuffEnd(BuffID);
-        IsBuffOn = false;
 
         yield return new WaitForSeconds(CoolDownTime - EffectTime - InvisibleGlobalCoolDownTime);
 
@@ -98,7 +98,7 @@ public class ManaPointsHealingAbility : SelfBuffingAction
 
         if (CurrentActionCoroutine != null)
         {
-            IsBuffOn = false;
+            ActorStatChangeHandler.RemoveStatChangingEffect(BuffID);
             IsActionUnusable = false;
             ActorMonoBehaviour.StopCoroutine(CurrentActionCoroutine);
             button.StopCoolDown();

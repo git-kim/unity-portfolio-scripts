@@ -1,13 +1,10 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerStatChangeDisplay : MonoBehaviour, IStatChangeDisplay
 {
     private BuffInfoList buffs;
     private PlayerBuffInfoDisplay playerBuffInfoDisplay;
-    //Actions playerActionCommands;
     private ObjectPoolManager objectPoolManagerInstance;
     private Vector3 hPChangeObjectSpawnLocalPos;
     private Vector3 buffOnOffObjectSpawnLocalPos;
@@ -30,46 +27,46 @@ public class PlayerStatChangeDisplay : MonoBehaviour, IStatChangeDisplay
         playerBuffInfoDisplay = FindObjectOfType<PlayerBuffInfoDisplay>();
     }
 
-    public void ShowBuffEnd(int buffID)
+    public void ShowBuffEnd(int buffIdentifier)
     {
         var obj = objectPoolManagerInstance.SpawnObjectFromPool("BuffOffPlayer", Vector3.zero, Quaternion.identity, false);
         obj.transform.SetParent(gameObject.transform, false);
         obj.transform.localPosition = buffOnOffObjectSpawnLocalPos;
 
         var objSprite = obj.GetComponentInChildren<UISprite>(true);
-        objSprite.spriteName = buffs[buffID].spriteName;
+        objSprite.spriteName = buffs[buffIdentifier].spriteName;
         objSprite.alpha = 1f;
 
         var objLabel = obj.GetComponentInChildren<UILabel>(true);
         objLabel.alpha = 1f;
-        objLabel.text = "- " + buffs[buffID].buffName;
+        objLabel.text = "- " + buffs[buffIdentifier].buffName;
 
         buffStartEndObjsInUse.Add(obj);
 
         obj.SetActive(true);
 
-        playerBuffInfoDisplay.RemoveDisplayingBuff(buffID);
+        playerBuffInfoDisplay.RemoveDisplayingBuff(buffIdentifier);
     }
 
-    public void ShowBuffStart(int buffID, float effectTime)
+    public void ShowBuffStart(int buffIdentifier, float effectTime)
     {
         var obj = objectPoolManagerInstance.SpawnObjectFromPool("BuffOnPlayer", Vector3.zero, Quaternion.identity, false);
         obj.transform.SetParent(gameObject.transform, false);
         obj.transform.localPosition = buffOnOffObjectSpawnLocalPos;
 
         var objSprite = obj.GetComponentInChildren<UISprite>(true);
-        objSprite.spriteName = buffs[buffID].spriteName;
+        objSprite.spriteName = buffs[buffIdentifier].spriteName;
         objSprite.alpha = 1f;
 
         var objLabel = obj.GetComponentInChildren<UILabel>(true);
         objLabel.alpha = 1f;
-        objLabel.text = "+ " + buffs[buffID].buffName;
+        objLabel.text = "+ " + buffs[buffIdentifier].buffName;
 
         buffStartEndObjsInUse.Add(obj);
 
         obj.SetActive(true);
 
-        playerBuffInfoDisplay.AddBuffToDisplay(buffID, effectTime);
+        playerBuffInfoDisplay.AddBuffToDisplay(buffIdentifier, effectTime);
     }
 
     public void ShowHitPointsChange(int change, bool isDecrement, in string actionName)

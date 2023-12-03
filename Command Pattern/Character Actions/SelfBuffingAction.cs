@@ -11,10 +11,11 @@ public abstract class SelfBuffingAction: ICommand
     protected Animator ActorAnim;
     protected Transform ActorTransform;
     protected CharacterActionHandler ActorActionHandler;
+    protected StatChangeHandler ActorStatChangeHandler;
     protected IStatChangeDisplay ActorIStatChangeDisplay;
 
     private protected int BuffID;
-    public bool IsBuffOn { get; protected set; }
+    public bool IsBuffOn => ActorStatChangeHandler.HasStatChangingEffect(BuffID);
     protected bool IsActionUnusable { get; set; }
     protected float EffectTime { get; set; }
 

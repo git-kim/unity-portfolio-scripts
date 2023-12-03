@@ -32,13 +32,9 @@ public class Enemy : Character, ISelectable
     private Transform currentTargetTransform, enemyTransform;
 
     private EnemyHPDisplay enemyHPDisplay;
-    public Dictionary<int, KeyValuePair<Stat, int>> ActiveBuffEffects { get; set; } = new Dictionary<int, KeyValuePair<Stat, int>>();
     public TargetIndicator TargetIndicator { get; set; }
 
-    public bool IsDead => statChangeHandler.HasZeroHitPoints;
-
     private CastingBarDisplay castingBarDisplay;
-    
 
     private IStatChangeDisplay enemyIStatChangeDisplay;
 
@@ -59,10 +55,6 @@ public class Enemy : Character, ISelectable
 
     private float timePassedSinceReset = 0f;
 
-
-    public Statistics Stats { get; private set; }
-    [SerializeField] private StatChangeHandler statChangeHandler;
-
     [SerializeField] private CharacterActionHandler characterActionHandler;
 
     protected override void Awake()
@@ -81,7 +73,6 @@ public class Enemy : Character, ISelectable
 
         castingBarDisplay = null;
 
-        CurrentTarget = RecentTarget = null;
         currentTargetTransform = null;
         enemyTransform = gameObject.transform;
         originalPosition = enemyTransform.position;
@@ -115,7 +106,7 @@ public class Enemy : Character, ISelectable
             stats = Stats,
             hitAndManaPointsDisplay = null,
             statChangeDisplay = enemyIStatChangeDisplay,
-            onHitPointsBecomeZero = null
+            onHitPointsBecomeZero = () => gameManagerInstance.onGameTick.RemoveListener(UpdateStat)
         });
     }
 
@@ -219,7 +210,7 @@ public class Enemy : Character, ISelectable
             thisTransform.rotation = originalRotation;
             navMeshAgent.velocity = Vector3.zero;
 
-            ActiveBuffEffects.Clear();
+            statChangeHandler.ActiveStatChangingEffects.Clear();
             Stats[Stat.HitPoints] = Stats[Stat.MaximumHitPoints];
 
             state = EnemyState.Idling;
@@ -305,7 +296,7 @@ public class Enemy : Character, ISelectable
 
     private void Idle()
     {
-        if (enmitiesAgainstPlayers.Count > 0 && CurrentTarget != null)
+        if (enmitiesAgainstPlayers.Count > 0 && characterActionHandler.CurrentTarget != null)
         {
             characterActionHandler.SqrDistanceFromCurrentTarget = GetSqrDistance(enemyTransform.position, currentTargetTransform.position);
 
@@ -369,8 +360,8 @@ public class Enemy : Character, ISelectable
         {
             enmitiesAgainstPlayers.Remove(currentTargetStatChangeHandler.Identifier);
 
-            RecentTarget = CurrentTarget;
-            CurrentTarget = null;
+            characterActionHandler.SetRecentTarget(characterActionHandler.CurrentTarget);
+            characterActionHandler.SetCurrentTarget(null);
             currentTargetTransform = null;
             currentTargetStatChangeHandler = null;
         }
@@ -379,31 +370,21 @@ public class Enemy : Character, ISelectable
             return;
 
         currentTargetTransform = gameManagerInstance.PlayersAlive[Utilities.GetMaxValuePair(enmitiesAgainstPlayers).Key];
-        RecentTarget = CurrentTarget;
-        CurrentTarget = currentTargetTransform.gameObject;
+        characterActionHandler.SetRecentTarget(characterActionHandler.CurrentTarget);
+        characterActionHandler.SetCurrentTarget(currentTargetTransform.gameObject);
 
-        if (RecentTarget == CurrentTarget)
+        if (characterActionHandler.RecentTarget == characterActionHandler.CurrentTarget)
             return;
 
-        currentTargetStatChangeHandler = CurrentTarget.GetComponent<StatChangeHandler>();
+        currentTargetStatChangeHandler = characterActionHandler.CurrentTarget.GetComponent<StatChangeHandler>();
 
         hasEnmityListBeenUpdated = false;
     }
 
-    private void UpdateStat()
-    {
-        if (IsDead) return;
-
-        foreach (KeyValuePair<Stat, int> activeBuffEffect in ActiveBuffEffects.Values)
-        {
-            statChangeHandler.DecreaseStat(activeBuffEffect.Key, activeBuffEffect.Value);
-        }
-    }
-
-    public GameData.Statistics GetStats()
-    {
-        return Stats;
-    }
+    //public Statistics GetStats()
+    //{
+    //    return Stats;
+    //}
 
     //public void UpdateStatBars()
     //{

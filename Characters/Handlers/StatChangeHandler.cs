@@ -1,4 +1,5 @@
 using GameData;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
@@ -7,6 +8,19 @@ namespace Characters.Handlers
 {
     public class StatChangeHandler : MonoBehaviour
     {
+        public enum StatChangingEffectType
+        {
+            Temporal,
+            AppliedPerTick
+        }
+
+        public struct StatChangingEffectData
+        {
+            public StatChangingEffectType type;
+            public Stat stat;
+            public int value;
+        }
+
         public struct InitializationContext
         {
             public int identifier;
@@ -37,10 +51,12 @@ namespace Characters.Handlers
             }
         }
 
-        public Dictionary<int, KeyValuePair<Stat, int>> ActiveStatChangingEffects { get; set; }
+        public Dictionary<int, StatChangingEffectData> ActiveStatChangingEffects { get; set; }
 
         public void Initialize(in InitializationContext context)
         {
+            ActiveStatChangingEffects = new Dictionary<int, StatChangingEffectData>(5);
+
             Identifier = context.identifier;
             stats = context.stats;
             hitAndManaPointsDisplay = context.hitAndManaPointsDisplay;
@@ -131,6 +147,71 @@ namespace Characters.Handlers
             }
 
             return Mathf.Max(0, damage);
+        }
+
+        public void ApplyActiveStatChangingEffects()
+        {
+            foreach (var data in ActiveStatChangingEffects.Values)
+            {
+                if (data.type == StatChangingEffectType.AppliedPerTick)
+                {
+                    if (data.value < 0)
+                    {
+                        DecreaseStat(data.stat, -data.value);
+                        if (data.stat == Stat.HitPoints)
+                            ShowHitPointsChange(-data.value, true, null);
+                    }
+                    else
+                    {
+                        IncreaseStat(data.stat, data.value);
+                        if (data.stat == Stat.HitPoints)
+                            ShowHitPointsChange(data.value, false, null);
+                    }
+                }
+            }
+        }
+
+        public void AddStatChangingEffect(int buffIdentifier, in StatChangingEffectData data)
+        {
+            if (!ActiveStatChangingEffects.ContainsKey(buffIdentifier))
+            {
+                ActiveStatChangingEffects.Add(buffIdentifier, data);
+            }
+
+            if (data.type == StatChangingEffectType.Temporal)
+            {
+                if (data.value < 0)
+                {
+                    DecreaseStat(data.stat, -data.value);
+                }
+                else
+                {
+                    IncreaseStat(data.stat, data.value);
+                }
+            }
+        }
+
+        public void RemoveStatChangingEffect(int buffIdentifier)
+        {
+            if (ActiveStatChangingEffects.TryGetValue(buffIdentifier, out var data)
+                && data.type == StatChangingEffectType.Temporal)
+            {
+                if (data.value < 0)
+                {
+                    IncreaseStat(data.stat, -data.value);
+                }
+                else
+                {
+                    DecreaseStat(data.stat, data.value);
+                }
+            }
+
+            ActiveStatChangingEffects.Remove(buffIdentifier);
+        }
+
+        public bool HasStatChangingEffect(int buffIdentifier)
+        {
+            return ActiveStatChangingEffects.ContainsKey(buffIdentifier);
         }
     }
 }

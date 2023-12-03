@@ -4,7 +4,6 @@ using UnityEngine;
 public class EnemyStatChangeDisplay : MonoBehaviour, IStatChangeDisplay
 {
     private BuffInfoList buffs;
-    //Actions enemyActionCommands;
     private ObjectPoolManager objectPoolManagerInstance;
 
     private readonly List<GameObject> buffEndObjInUse = new List<GameObject>();
@@ -46,7 +45,7 @@ public class EnemyStatChangeDisplay : MonoBehaviour, IStatChangeDisplay
         nGUICamera = GameObject.Find("UI Root").GetComponentInChildren<Camera>();
     }
 
-    public void ShowBuffEnd(int buffID)
+    public void ShowBuffEnd(int buffIdentifier)
     {
         var obj = objectPoolManagerInstance.SpawnObjectFromPool("BuffOffEnemy", Vector3.zero, Quaternion.identity, false);
         obj.transform.SetParent(gameObject.transform, false);
@@ -54,19 +53,19 @@ public class EnemyStatChangeDisplay : MonoBehaviour, IStatChangeDisplay
         obj.transform.localPosition = buffOffObjectSpawnLocalPosition;
 
         var objSprite = obj.GetComponentInChildren<UISprite>(true);
-        objSprite.spriteName = buffs[buffID].spriteName;
+        objSprite.spriteName = buffs[buffIdentifier].spriteName;
         objSprite.alpha = 1f;
 
         var objLabel = obj.GetComponentInChildren<UILabel>(true);
         objLabel.alpha = 1f;
-        objLabel.text = "- " + buffs[buffID].buffName;
+        objLabel.text = "- " + buffs[buffIdentifier].buffName;
 
         buffEndObjInUse.Add(obj);
 
         obj.SetActive(true);
     }
 
-    public void ShowBuffStart(int buffID, float effectTime)
+    public void ShowBuffStart(int buffIdentifier, float effectTime)
     {
         var obj = objectPoolManagerInstance.SpawnObjectFromPool("DebuffOnEnemy", Vector3.zero, Quaternion.identity, false);
         // 참고: BuffOnEnemy라는 prefab은 만들지 않았다.
@@ -76,12 +75,12 @@ public class EnemyStatChangeDisplay : MonoBehaviour, IStatChangeDisplay
         obj.transform.localPosition = buffOnObjectSpawnLocalPosition;
 
         var objSprite = obj.GetComponentInChildren<UISprite>(true);
-        objSprite.spriteName = buffs[buffID].spriteName;
+        objSprite.spriteName = buffs[buffIdentifier].spriteName;
         objSprite.alpha = 1f;
 
         var objLabel = obj.GetComponentInChildren<UILabel>(true);
         objLabel.alpha = 1f;
-        objLabel.text = "+ " + buffs[buffID].buffName;
+        objLabel.text = "+ " + buffs[buffIdentifier].buffName;
 
         buffStartObjInUse.Add(obj);
 

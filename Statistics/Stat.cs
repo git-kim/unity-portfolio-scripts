@@ -14,6 +14,8 @@
         MagicAttack,
 
         MeleeDefense,
-        MagicDefense
+        MagicDefense,
+
+        LocomotionSpeed
     }
 }

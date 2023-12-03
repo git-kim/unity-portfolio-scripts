@@ -15,8 +15,6 @@ public sealed partial class Player : Character
     private static readonly int Idle2On = Animator.StringToHash("Idle2 On");
     private static readonly int LandMode = Animator.StringToHash("LandMode");
 
-    public bool IsDead => statChangeHandler.HasZeroHitPoints;
-
     IEnumerator BlockMovementTemporarily(float timeInSeconds, UnityAction onEnd)
     {
         IsAbleToMove = false;
@@ -29,8 +27,8 @@ public sealed partial class Player : Character
     {
         Animator.SetTrigger(Dead);
         playerFeetIK.DisableFeetIK();
-        StopTakingAction();
-        RemoveActionToTake();
+        actionHandler.StopTakingAction();
+        actionHandler.RemoveActionToTake();
         playerIStatChangeDisplay.RemoveAllDisplayingBuffs();
         DeselectTarget();
         yield return new WaitForSeconds(0.5f); // 리마인더: 시간은 변경하여야 할 수도 있다.
@@ -43,12 +41,13 @@ public sealed partial class Player : Character
         if (gameManagerInstance.State == GameState.Over || statChangeHandler.HasZeroHitPoints)
             return;
 
-        UpdateGlobalCoolDownTime();
+        actionHandler.UpdateGlobalCoolDownTime();
 
         // 오디오 리스너 회전 갱신(카메라가 보는 방향을 보도록)
         audioListenerTransform.rotation = Quaternion.LookRotation(audioListenerTransform.position - mainCameraTransform.position);
 
-        UpdateSqrDistanceFromCurrentTarget();
+        actionHandler.UpdateSqrDistanceFromCurrentTarget(currentTargetStatChangeHandler.SelfOrNull()?.HasZeroHitPoints ?? false, DeselectTarget);
+        onUpdateSqrDistanceFromCurrentTarget.Invoke();
 
         if (!gameManagerInstance.IsInBattle && Animator.GetBool(BattlePoseOn) && timeToTurnOffBattleMode > 0f)
         {
@@ -58,28 +57,7 @@ public sealed partial class Player : Character
                 timeToTurnOffBattleMode = 3f;
                 Animator.SetBool(BattlePoseOn, false);
             }
-
         }
-    }
-
-    private void UpdateSqrDistanceFromCurrentTarget()
-    {
-        var value
-            = characterActionHandler.SqrDistanceFromCurrentTarget
-            = (CurrentTarget == null) ?
-            0f : Vector3.SqrMagnitude(playerTransform.position - CurrentTarget.transform.position);
-
-        if (value > 1600f && !(CurrentTarget == null)) // 선택 중인 대상과 떨어진 거리가 40f를 초과하면
-        {
-            DeselectTarget();
-        }
-
-        if (CurrentTarget != null && currentTargetStatChangeHandler.HasZeroHitPoints)
-        {
-            DeselectTarget();
-        }
-
-        onUpdateSqrDistanceFromCurrentTarget.Invoke();
     }
 
     protected override void Update()
@@ -90,108 +68,17 @@ public sealed partial class Player : Character
         Locomote();
 
         if (gameManagerInstance.State != GameState.Over && !statChangeHandler.HasZeroHitPoints)
-            Act();
+            actionHandler.Act(IsMoving);
     }
 
-    /// <summary>
-    /// 플레이어의 키 입력에 맞추어 플레이어 캐릭터가 액션을 취하게 한다.
-    /// </summary>
-    private void Act()
-    {
-        if (recentActionInput > 0)
-        {
-            if (VisibleGlobalCoolDownTime < 1f
-                || (!IsCasting && CharacterActions[recentActionInput].canIgnoreVisibleGlobalCoolDownTime))
-            {
-                characterActionHandler.ActionToTake = recentActionInput; // 액션 예약
-                RecentTarget = CurrentTarget; // 현재 선택 대상 저장
-            }
-        }
-
-        recentActionInput = 0; // 주의: 이 줄이 있어야 오동작하지 않는다.
-
-        if (IsMoving)
-        {
-            if (IsCasting && VisibleGlobalCoolDownTime > 0.5f)
-            {
-                StopTakingAction(); // 캐스팅 액션 중단
-                RemoveActionToTake(); // 액션 예약 취소
-            }
-            else if (CharacterActions[characterActionHandler.ActionToTake].castTime > 0f)
-                RemoveActionToTake(); // 캐스팅 액션 예약 취소
-        }
-
-        if (characterActionHandler.ActionToTake != 0
-            && characterActionHandler.ActionBeingTaken == 0
-            && characterActionHandler.InvisibleGlobalCoolDownTime == 0f
-            && (VisibleGlobalCoolDownTime == 0f
-            || CharacterActions[characterActionHandler.ActionToTake].canIgnoreVisibleGlobalCoolDownTime))
-        {
-            if (!(RecentTarget == null) && CheckIfActionAffectsTarget() && CheckIfPlayerIsNotLookingAtTarget())
-            {
-                MakePlayerLookAtTarget();
-            }
-
-            CharacterActions[characterActionHandler.ActionToTake].actionCommand
-                .Execute(Identifier, RecentTarget, CharacterActions[characterActionHandler.ActionToTake]);
-            characterActionHandler.ActionToTake = 0;
-        }
-    }
-
-    /// <summary>
-    /// 플레이어 캐릭터가 해당 액션을 선택 대상에게 취할지를 검사한다.
-    /// </summary>
-    /// <returns></returns>
-    private bool CheckIfActionAffectsTarget()
-    {
-        return (CharacterActions[characterActionHandler.ActionToTake].targetType == CharacterActionTargetType.NonSelf);
-    }
-
-    /// <summary>
-    /// 플레이어 캐릭터(머리 기준)가 현재 선택 대상을 보고 있지 않은지 검사한다.
-    /// </summary>
-    /// <returns></returns>
-    private bool CheckIfPlayerIsNotLookingAtTarget()
-    {
-        return Vector3.Dot(Vector3.Scale(RecentTarget.transform.position - playerTransform.position, forwardRight).normalized,
-            Vector3.Scale(Animator.GetBoneTransform(HumanBodyBones.Head).forward, forwardRight).normalized) < 0.8f; // 내적 계산 결과 반환
-    }
-
-    /// <summary>
-    /// 플레이어 캐릭터(하단 중앙 기준)가 현재 선택 대상을 보도록 몸 전체를 회전한다.
-    /// </summary>
-    private void MakePlayerLookAtTarget()
-    {
-        Vector3 tempVelocity = (RecentTarget.transform.position - playerTransform.position).normalized;
-        tempVelocity.y = 0f;
-        if (tempVelocity != Vector3.zero) // 예외 처리
-        {
-            TargetRotation = Quaternion.LookRotation(tempVelocity); // 참고: 실제 회전 처리는 Rotate 함수에서 한다.
-        }
-    }
-
-    /// <summary>
-    /// 플레이어가 선택한 대상이 있으면 플레이어 캐릭터가 그 대상을 보게 한다.(몸 전체를 회전하지는 않는다.)
-    /// </summary>
     private void OnAnimatorIK(int layerIndex)
     {
         if (layerIndex != 0)
             return;
 
-        if (CurrentTarget != null)
-        {
-            Animator.SetLookAtPosition(CurrentTarget.transform.position
-                + Vector3.up * CurrentTarget.transform.lossyScale.y * 0.9f);
-
-            Animator.SetLookAtWeight(1f, 0.5f, 1f, 1f, 0.7f);
-        }
-        else
-            Animator.SetLookAtWeight(0f);
+        actionHandler.SetLookAtValues();
     }
 
-    /// <summary>
-    /// 플레이어 캐릭터 위치를 변경한다. 착지, 도약, 낙하가 포함된다.
-    /// </summary>
     private void Locomote()
     {
         if (!IsDead)
@@ -204,7 +91,7 @@ public sealed partial class Player : Character
         if (hasBeenInTheAir)
         {
             if (IsNotInTheAir && !IsDead)
-                onLand.Invoke(); // 착지 시작
+                onLand.Invoke(); // starts landing
         }
         else
         {
@@ -212,38 +99,34 @@ public sealed partial class Player : Character
             {
                 if (keyManagerInstance.Jump && IsAbleToMove && !IsDead)
                 {
-                    onJumpUp.Invoke(); // 도약 시작
+                    onJumpUp.Invoke(); // starts jumping up
                 }
                 else
                 {
-                    // y 축 방향 속도 제한
                     if (Animator.GetFloat(YSpeed) < -0.4f)
-                        Animator.SetFloat(YSpeed, -0.4f);
+                        Animator.SetFloat(YSpeed, -0.4f); // limits speed
 
-                    CalculateLocomotionSpeed();
+                    SetValuesAccordingToMovementMode();
                 }
             }
             else if  (!IsDead)
             {
                 if (Animator.GetFloat(YSpeed) <= -2f)
-                    onFall.Invoke(); // 낙하 시작
+                    onFall.Invoke(); // starts falling
             }
         }
 
-        Animator.SetFloat(YSpeed, Animator.GetFloat(YSpeed) + NegativeGravity * Time.deltaTime); // 중력 적용
+        Animator.SetFloat(YSpeed, Animator.GetFloat(YSpeed) + NegativeGravity * Time.deltaTime); // applies gravity
         Velocity.y = Animator.GetFloat(YSpeed);
 
-        base.Rotate(); // 상위 클래스 함수 호출(캐릭터 회전)
+        base.Rotate();
 
-        Velocity = Vector3.Scale(Velocity, DragFactor); // 항력 적용
+        Velocity = Vector3.Scale(Velocity, DragFactor); // applies drag
 
-        base.Move(); // 상위 클래스 함수 호출(캐릭터 이동, isMoving 값 변경)
+        base.Move();
     }
 
-    /// <summary>
-    /// 이동 속도를 계산한다. 이동 속도 버프('잰 발놀림' 효과)가 적용된다.
-    /// </summary>
-    void CalculateLocomotionSpeed()
+    void SetValuesAccordingToMovementMode()
     {
         if (Velocity.magnitude > 0.001f)
         {
@@ -254,7 +137,8 @@ public sealed partial class Player : Character
             // 빨리 달리기(= 질주, 0b101)
             movementMode = keyManagerInstance.MovementMode;
 
-            if (sprint.IsBuffOn) movementMode |= 0b001; // '잰 발놀림' 효과 적용
+            if (statChangeHandler.HasStatChangingEffect(0))
+                movementMode |= 0b001;
 
             switch (movementMode)
             {
@@ -285,21 +169,6 @@ public sealed partial class Player : Character
             Animator.SetInteger(MovementMode, 0);
             Animator.SetFloat(MovementSpeedMult, 1f);
         }
-    }
-
-    /// <summary>
-    /// 액션 재사용 대기 시간 관련 처리를 한다.
-    /// </summary>
-    private void UpdateGlobalCoolDownTime()
-    {
-        if (VisibleGlobalCoolDownTime > 0f)
-            characterActionHandler.VisibleGlobalCoolDownTime =
-                Mathf.Max(VisibleGlobalCoolDownTime - Time.deltaTime, 0f);
-        if (characterActionHandler.InvisibleGlobalCoolDownTime > 0f)
-            characterActionHandler.InvisibleGlobalCoolDownTime =
-                Mathf.Max(characterActionHandler.InvisibleGlobalCoolDownTime - Time.deltaTime, 0f);
-
-        onUpdateVisibleGlobalCoolTime.Invoke();
     }
 
     /// <summary>
@@ -369,23 +238,6 @@ public sealed partial class Player : Character
         // 참고: 우변에 (Controller.collisionFlags & CollisionFlags.Below) != 0;을 사용할 수도 있겠으나 Controller는 캡슐 형태 콜라이더이므로 땅 모서리에서 부정확하다.
     }
 
-    /// <summary>
-    /// 기술(액션) 사용을 중지한다.
-    /// </summary>
-    void StopTakingAction()
-    {
-        if (characterActionHandler.ActionBeingTaken > 0)
-            CharacterActions[characterActionHandler.ActionBeingTaken].actionCommand.Stop();
-
-        characterActionHandler.InvisibleGlobalCoolDownTime = 0.5f;
-    }
-
-    void RemoveActionToTake()
-    {
-        characterActionHandler.ActionToTake = 0;
-        RecentTarget = null;
-    }
-
     void Jump()
     {
         keyManagerInstance.Jump = false;
@@ -428,6 +280,7 @@ public sealed partial class Player : Character
 
     void Die()
     {
+        gameManagerInstance.onGameTick.RemoveListener(UpdateStat);
         gameManagerInstance.PlayersAlive.Remove(Identifier);
         StopAllCoroutines();
         StartCoroutine(EndGame());
@@ -439,18 +292,19 @@ public sealed partial class Player : Character
         if (currentTargetStatChangeHandler.HasZeroHitPoints)
             return;
 
-        CurrentTarget = gO;
+        actionHandler.SetCurrentTarget(gO);
+
         currentTargetISelectable = gO.GetComponent<ISelectable>();
         currentTargetISelectable.TargetIndicator.Enable();
     }
 
     public void DeselectTarget()
     {
-        if (CurrentTarget == null)
+        if (actionHandler.CurrentTarget == null)
             return;
 
         currentTargetISelectable.TargetIndicator.Disable();
-        CurrentTarget = null;
+        actionHandler.SetCurrentTarget(null);
         currentTargetISelectable = null;
         currentTargetStatChangeHandler = null;
     }

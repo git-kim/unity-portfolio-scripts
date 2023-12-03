@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 using Characters.Handlers;
+using GameData;
 
 public class SprintAbility : SelfBuffingAction
 {
@@ -8,17 +9,17 @@ public class SprintAbility : SelfBuffingAction
 
     private float InvisibleGlobalCoolDownTime { get; set; }
 
-    public SprintAbility(GameObject actor, int buffID, OffGlobalCoolDownActionButton button, IStatChangeDisplay actorIStatChangeDisplay)
+    public SprintAbility(GameObject actor, int buffIdentifier, OffGlobalCoolDownActionButton button, IStatChangeDisplay actorIStatChangeDisplay)
     {
-        BuffID = buffID;
+        BuffID = buffIdentifier;
 
-        IsBuffOn = false;
         IsActionUnusable = false;
 
         ActorTransform = actor.transform;
         ActorMonoBehaviour = actor.GetComponent<MonoBehaviour>();
         ActorAnim = actor.GetComponent<Animator>();
         ActorActionHandler = actor.GetComponent<CharacterActionHandler>();
+        ActorStatChangeHandler = actor.GetComponent<StatChangeHandler>();
         ActorIStatChangeDisplay = actorIStatChangeDisplay;
 
         this.button = button;
@@ -26,18 +27,23 @@ public class SprintAbility : SelfBuffingAction
         ParticleEffectName = ParticleEffectName.SprintBuff;
     }
 
-    /// <summary>
-    /// Execute 함수에서 호출되는 함수이다. toDirection이 Vector3.zero로 지정되면 회전 값이 변경되지 않는다.
-    /// </summary>
     private IEnumerator TakeAction(int actionID, ParticleEffectName particleEffectName, Vector3 localPosition, Vector3 toDirection, Vector3 localScale, bool shouldEffectFollowTarget = true)
     {
         ActorActionHandler.InvisibleGlobalCoolDownTime = InvisibleGlobalCoolDownTime;
 
-        IsActionUnusable = IsBuffOn = true;
+        IsActionUnusable = true;
 
         button.StartCoolDown();
 
         ActorIStatChangeDisplay.ShowBuffStart(BuffID, EffectTime);
+
+        ActorStatChangeHandler.AddStatChangingEffect(BuffID,
+            new StatChangeHandler.StatChangingEffectData
+            {
+                type = StatChangeHandler.StatChangingEffectType.Temporal,
+                stat = 0,
+                value = ActorActionHandler.Stats[Stat.LocomotionSpeed]
+            });
 
         if (particleEffectName != ParticleEffectName.None)
             NonPooledParticleEffectManager.Instance.PlayParticleEffect(particleEffectName, ActorTransform, localPosition, toDirection, localScale, 1f, shouldEffectFollowTarget);
@@ -49,7 +55,7 @@ public class SprintAbility : SelfBuffingAction
         yield return new WaitForSeconds(EffectTime - InvisibleGlobalCoolDownTime);
 
         ActorIStatChangeDisplay.ShowBuffEnd(BuffID);
-        IsBuffOn = false;
+        ActorStatChangeHandler.RemoveStatChangingEffect(BuffID);
 
         yield return new WaitForSeconds(CoolDownTime - EffectTime - InvisibleGlobalCoolDownTime);
 
@@ -64,15 +70,17 @@ public class SprintAbility : SelfBuffingAction
         CoolDownTime = actionInfo.coolDownTime;
         InvisibleGlobalCoolDownTime = actionInfo.invisibleGlobalCoolDownTime;
 
-        if (ActorAnim.GetBool("Battle Pose On")) // 전투 자세이면
+        if (ActorAnim.GetBool("Battle Pose On"))
         {
-            EffectTime = 10f; // 10초 질주 가능
-            CurrentActionCoroutine = ActorMonoBehaviour.StartCoroutine(TakeAction(actionInfo.id, ParticleEffectName, Vector3.up * 0.2f, Vector3.zero, Vector3.one));
+            EffectTime = 10f; // 10 seconds sprint
+            CurrentActionCoroutine = ActorMonoBehaviour.StartCoroutine(
+                TakeAction(actionInfo.id, ParticleEffectName, Vector3.up * 0.2f, Vector3.zero, Vector3.one));
         }
         else
         {
-            EffectTime = 20f; // 20초 질주 가능
-            CurrentActionCoroutine = ActorMonoBehaviour.StartCoroutine(TakeAction(actionInfo.id, ParticleEffectName, Vector3.up * 0.2f, Vector3.zero, Vector3.one));
+            EffectTime = 20f; // 20 seconds sprint
+            CurrentActionCoroutine = ActorMonoBehaviour.StartCoroutine(
+                TakeAction(actionInfo.id, ParticleEffectName, Vector3.up * 0.2f, Vector3.zero, Vector3.one));
         }
     }
 
@@ -82,7 +90,7 @@ public class SprintAbility : SelfBuffingAction
 
         if (CurrentActionCoroutine != null)
         {
-            IsBuffOn = false;
+            ActorStatChangeHandler.RemoveStatChangingEffect(BuffID);
             IsActionUnusable = false;
             ActorMonoBehaviour.StopCoroutine(CurrentActionCoroutine);
             button.StopCoolDown();

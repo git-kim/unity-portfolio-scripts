@@ -17,16 +17,13 @@ public class UltimateActionButton : ActionButton
     }
     void Start()
     {
-        if (!HasPlayerVariablesBeenSet)
-            SetPlayerVariables();
-
-        sqrRange = Mathf.Pow(PlayerActionCommands[actionID].range, 2f);
+        sqrRange = Mathf.Pow(playerActionHandler.CharacterActions[actionID].range, 2f);
     }
 
     public sealed override void React()
     {
         if (!gameObject.activeSelf) return;
-        if (Player.VisibleGlobalCoolDownTime > 0f || gameManagerInstance.State != GameState.Running)
+        if (playerActionHandler.VisibleGlobalCoolDownTime > 0f || gameManagerInstance.State != GameState.Running)
             disablenessIndicator.Enable();
         else disablenessIndicator.Disable();
     }
@@ -36,8 +33,8 @@ public class UltimateActionButton : ActionButton
         if (!gameObject.activeSelf) return;
         if (sqrRange == 0f) return;
 
-        // 거리 검사
-        if (Player.SqrDistanceFromCurrentTarget > sqrRange)
+        // Check Distance
+        if (playerActionHandler.SqrDistanceFromCurrentTarget > sqrRange)
         {
             disablenessIndicatorSprite.color = UnusablenessColor;
             return;

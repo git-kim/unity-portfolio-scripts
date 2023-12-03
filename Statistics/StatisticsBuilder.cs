@@ -7,11 +7,11 @@
     {
         private readonly int[] values;
 
-        public StatisticsBuilder() => values = new int[10];
+        public StatisticsBuilder() => values = new int[11];
 
         public StatisticsBuilder SetBaseValue(Stat stat, int value)
         {
-            values[(int)stat] = value; 
+            values[(int)stat] = value;
             return this;
         }
 

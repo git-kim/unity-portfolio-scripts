@@ -68,9 +68,9 @@ public class PlayerBuffInfoDisplay : MonoBehaviour
         }
     }
 
-    public void AddBuffToDisplay(int buffID, float effectTime)
+    public void AddBuffToDisplay(int buffIdentifier, float effectTime)
     {
-        var alreadyActiveIndex = currentActiveBuffs.FindIndex(element => element.ID == buffID);
+        var alreadyActiveIndex = currentActiveBuffs.FindIndex(element => element.ID == buffIdentifier);
         if (alreadyActiveIndex != -1)
         {
             currentActiveBuffs[alreadyActiveIndex].Time = effectTime;
@@ -78,7 +78,7 @@ public class PlayerBuffInfoDisplay : MonoBehaviour
         }
         else
         {
-            var notYetActiveIndex = availableBuffs.FindIndex(element => element.ID == buffID);
+            var notYetActiveIndex = availableBuffs.FindIndex(element => element.ID == buffIdentifier);
             var buffInfoObj = availableBuffs[notYetActiveIndex];
             buffInfoObj.Time = effectTime;
             buffInfoObj.TimeLabel.text = effectTime.ToString();
@@ -88,9 +88,9 @@ public class PlayerBuffInfoDisplay : MonoBehaviour
         }
     }
 
-    public void RemoveDisplayingBuff(int buffID)
+    public void RemoveDisplayingBuff(int buffIdentifier)
     {
-        foreach (var buff in currentActiveBuffs.FindAll(element => element.ID == buffID))
+        foreach (var buff in currentActiveBuffs.FindAll(element => element.ID == buffIdentifier))
         {
             buff.Prefab.SetActive(false);
             currentActiveBuffs.Remove(buff);

@@ -24,6 +24,9 @@ namespace Characters.Handlers
             public Statistics stats;
         }
 
+        public GameObject CurrentTarget { get; protected set; } = null;
+        public GameObject RecentTarget { get; protected set; } = null;
+
         public int ActionToTake { get; set; }
         public int ActionBeingTaken { get; set; }
         public bool IsCasting { get; set; }
@@ -52,6 +55,16 @@ namespace Characters.Handlers
             CastingBarDisplay = context.castingBarDisplay;
             CharacterActions = context.characterActions;
             Stats = context.stats;
+        }
+
+        public void SetCurrentTarget(GameObject gO)
+        {
+            CurrentTarget = gO;
+        }
+
+        public void SetRecentTarget(GameObject gO)
+        {
+            RecentTarget = gO;
         }
     }
 }

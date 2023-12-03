@@ -14,13 +14,11 @@ public class OffGlobalCoolDownActionButton : ActionButton
 
     private float currentCoolDownTime;
 
-    //[Tooltip("액션 재사용 대기 시간")] [SerializeField]
     private float actionCoolDownTime;
 
     private Coroutine coolDownCoroutine;
 
-    [Tooltip("글로벌 액션 재사용 대기 중에 사용이 가능한가?")] [SerializeField]
-    private bool isUsableDuringGlobalCoolDown;
+    [SerializeField] private bool isUsableDuringGlobalCoolDown;
 
     private void Awake()
     {
@@ -40,14 +38,11 @@ public class OffGlobalCoolDownActionButton : ActionButton
 
     private void Start()
     {
-        if (!HasPlayerVariablesBeenSet)
-            SetPlayerVariables();
-
-        manaPointsCost = PlayerActionCommands[actionID].manaPointsCost;
-        sqrRange = Mathf.Pow(PlayerActionCommands[actionID].range, 2f);
+        manaPointsCost = playerActionHandler.CharacterActions[actionID].manaPointsCost;
+        sqrRange = Mathf.Pow(playerActionHandler.CharacterActions[actionID].range, 2f);
 
         currentCoolDownTime = 0f;
-        actionCoolDownTime = Player.CharacterActions[actionID].coolDownTime;
+        actionCoolDownTime = playerActionHandler.CharacterActions[actionID].coolDownTime;
     }
 
     public sealed override void React()
@@ -57,9 +52,9 @@ public class OffGlobalCoolDownActionButton : ActionButton
         else
             coolDownTimeIndicator.Set(0f, false);
 
-        if ((Player.VisibleGlobalCoolDownTime > 0f && !isUsableDuringGlobalCoolDown)
+        if ((playerActionHandler.VisibleGlobalCoolDownTime > 0f && !isUsableDuringGlobalCoolDown)
             || gameManagerInstance.State != GameState.Running
-            || Player.IsCasting)
+            || playerActionHandler.IsCasting)
             disablenessIndicator.Enable();
         else disablenessIndicator.Disable();
     }
@@ -68,8 +63,8 @@ public class OffGlobalCoolDownActionButton : ActionButton
     {
         if (manaPointsCost == 0 || sqrRange == 0f) return;
 
-        // MP 검사
-        if (Player.Stats[Stat.ManaPoints] < manaPointsCost)
+        // Check Mana Points
+        if (playerActionHandler.Stats[Stat.ManaPoints] < manaPointsCost)
         {
             manaPointsCostIndicator.effectColor = UnusablenessColor;
             return;
@@ -79,8 +74,8 @@ public class OffGlobalCoolDownActionButton : ActionButton
             manaPointsCostIndicator.effectColor = UsablenessColor;
         }
 
-        // 거리 검사
-        if (Player.SqrDistanceFromCurrentTarget > sqrRange)
+        // Check Distance
+        if (playerActionHandler.SqrDistanceFromCurrentTarget > sqrRange)
         {
             manaPointsCostIndicator.effectColor = UnusablenessColor;
             return;

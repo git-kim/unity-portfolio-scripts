@@ -3,10 +3,11 @@ using System.Collections;
 using System.Collections.Generic;
 using GameData;
 using Characters.Handlers;
+using static Characters.Handlers.StatChangeHandler;
 
 public class CurseSpell : NonSelfTargetedAction
 {
-    private readonly int buffID;
+    private readonly int buffIdentifier;
     private bool IsBuffOn { get; set; }
     private bool IsActionUnusable { get; set; }
     private float EffectTime { get; set; }
@@ -21,10 +22,10 @@ public class CurseSpell : NonSelfTargetedAction
     private int manaPointsCost;
     private float range;
 
-    public CurseSpell(GameObject actor, int buffID)
+    public CurseSpell(GameObject actor, int buffIdentifier)
     {
-        this.buffID = buffID;
-        EffectTime = GameManagerInstance.Buffs[buffID].effectTime;
+        this.buffIdentifier = buffIdentifier;
+        EffectTime = GameManagerInstance.Buffs[buffIdentifier].effectTime;
 
         IsBuffOn = false;
         // IsActionUnusable = false;
@@ -39,9 +40,6 @@ public class CurseSpell : NonSelfTargetedAction
         particleEffectName = ParticleEffectName.CurseDebuff;
     }
 
-    /// <summary>
-    /// Execute 함수에서 호출되는 함수이다. toDirection이 Vector3.zero로 지정되면 회전 값이 변경되지 않는다.
-    /// </summary>
     private IEnumerator TakeAction(int actionID, int actorID, ParticleEffectName particleEffectName, Transform targetTransform, Vector3 localPosition, Vector3 toDirection, Vector3 localScale, bool shouldEffectFollowTarget = true)
     {
         ActorAnimator.SetInteger(ActionMode, actionID); // ActionMode에 actionID 값을 저장한다(애니메이션 시작).
@@ -52,7 +50,7 @@ public class CurseSpell : NonSelfTargetedAction
 
         IsActionUnusable = IsBuffOn = true;
         AfflictWithDebuff();
-        targetIStatChangeDisplay.ShowBuffStart(buffID, EffectTime);
+        targetIStatChangeDisplay.ShowBuffStart(buffIdentifier, EffectTime);
 
         actorStatChangeHandler.DecreaseStat(Stat.ManaPoints, manaPointsCost);
 
@@ -80,8 +78,8 @@ public class CurseSpell : NonSelfTargetedAction
         yield return new WaitForSeconds(EffectTime - InvisibleGlobalCoolDownTime);
 
         if (!targetStatChangeHandler.HasZeroHitPoints
-            && targetStatChangeHandler.ActiveStatChangingEffects.ContainsKey(buffID))
-            targetIStatChangeDisplay.ShowBuffEnd(buffID);
+            && targetStatChangeHandler.ActiveStatChangingEffects.ContainsKey(buffIdentifier))
+            targetIStatChangeDisplay.ShowBuffEnd(buffIdentifier);
 
         RemoveDebuff();
         IsBuffOn = false;
@@ -165,15 +163,17 @@ public class CurseSpell : NonSelfTargetedAction
 
     private void AfflictWithDebuff()
     {
-        if (!targetStatChangeHandler.ActiveStatChangingEffects.ContainsKey(buffID))
-        {
-            targetStatChangeHandler.ActiveStatChangingEffects.Add(buffID,
-                new KeyValuePair<Stat, int>(Stat.HitPoints, 40));
-        }
+        targetStatChangeHandler.AddStatChangingEffect(buffIdentifier,
+            new StatChangingEffectData
+            {
+                type = StatChangingEffectType.AppliedPerTick,
+                stat = Stat.HitPoints,
+                value = -40
+            });
     }
 
     private void RemoveDebuff()
     {
-        targetStatChangeHandler.ActiveStatChangingEffects.Remove(buffID);
+        targetStatChangeHandler.RemoveStatChangingEffect(buffIdentifier);
     }
 }
