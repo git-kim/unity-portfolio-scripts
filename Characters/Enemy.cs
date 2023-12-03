@@ -31,16 +31,13 @@ public class Enemy : Character, ISelectable
     private GameManager gameManagerInstance;
     private Transform currentTargetTransform, enemyTransform;
 
-    private EnemyHPDisplay enemyHPDisplay;
+    [SerializeField] private HitAndManaPointsDisplay hitAndManaPointsDisplay;
     public TargetIndicator TargetIndicator { get; set; }
 
     private CastingBarDisplay castingBarDisplay;
 
-    private IStatChangeDisplay enemyIStatChangeDisplay;
-
     private StatChangeHandler currentTargetStatChangeHandler;
-
-    public IStatChangeDisplay EnemyIStatChangeDisplay => enemyIStatChangeDisplay;
+    public IStatChangeDisplay StatChangeDisplay { get; private set; }
 
     private bool hasEnmityListBeenUpdated = false;
 
@@ -63,10 +60,10 @@ public class Enemy : Character, ISelectable
 
         Identifier = 100;
 
+        StatChangeDisplay = FindObjectOfType<EnemyStatChangeDisplay>();
+
         SetStats();
         InitializeStatChangeHandler();
-
-        enemyIStatChangeDisplay = FindObjectOfType<EnemyStatChangeDisplay>();
 
         TargetIndicator = gameObject.GetComponentInChildren<TargetIndicator>(true);
         TargetIndicator.Disable();
@@ -104,9 +101,16 @@ public class Enemy : Character, ISelectable
         {
             identifier = Identifier,
             stats = Stats,
-            hitAndManaPointsDisplay = null,
-            statChangeDisplay = enemyIStatChangeDisplay,
-            onHitPointsBecomeZero = () => gameManagerInstance.onGameTick.RemoveListener(UpdateStat)
+            hitAndManaPointsDisplay = hitAndManaPointsDisplay,
+            statChangeDisplay = StatChangeDisplay,
+            onHitPointsBecomeZero = () => 
+            {
+                gameManagerInstance.EnemiesAlive.Remove(Identifier);
+                gameManagerInstance.onGameTick.RemoveListener(UpdateStat);
+                // StartCoroutine(EndGame());
+                StatChangeDisplay.RemoveAllDisplayingBuffs();
+                state = EnemyState.Dying;
+            }
         });
     }
 
@@ -147,7 +151,6 @@ public class Enemy : Character, ISelectable
 
     protected override void Start()
     {
-        enemyHPDisplay = FindObjectOfType<EnemyHPDisplay>();
         Identifier = gameManagerInstance.AddEnemyAlive(Identifier, enemyTransform);
         gameManagerInstance.onGameTick.AddListener(UpdateStat);
         gameManagerInstance.onGameTick2.AddListener(UpdateCurrentTarget);
@@ -212,6 +215,7 @@ public class Enemy : Character, ISelectable
 
             statChangeHandler.ActiveStatChangingEffects.Clear();
             Stats[Stat.HitPoints] = Stats[Stat.MaximumHitPoints];
+            statChangeHandler.UpdateHitPointsDisplay();
 
             state = EnemyState.Idling;
             Animator.SetInteger(MovementMode, 0);
@@ -257,7 +261,6 @@ public class Enemy : Character, ISelectable
         else
         {
             state = EnemyState.Locomoting;
-            ////  currentTime = 0f;
         }
     }
 
@@ -276,18 +279,15 @@ public class Enemy : Character, ISelectable
 
         if (characterActionHandler.SqrDistanceFromCurrentTarget > MaxSquareOfChaseDistance)
         {
-            // 복귀 상태로 변경하기
             state = EnemyState.Returning;
         }
         else if (characterActionHandler.SqrDistanceFromCurrentTarget > MaxSquareOfMeleeAttackRange)
         {
-            // 이동 처리
-            navMeshAgent.SetDestination(currentTargetTransform.position); // NavMeshAgent 변수를 사용하여 적 캐릭터를 플레이어 캐릭터 쪽으로 이동한다.
+            navMeshAgent.SetDestination(currentTargetTransform.position);
             LookAtCurrentTarget();
         }
         else
         {
-            // 공격 상태로 변경하기
             navMeshAgent.SetDestination(enemyTransform.position);
             state = EnemyState.Attacking;
             timeToAttack = 2f;
@@ -304,18 +304,17 @@ public class Enemy : Character, ISelectable
             {
                 if (characterActionHandler.SqrDistanceFromCurrentTarget > MaxSquareOfMeleeAttackRange)
                 {
-                    // 이동 상태로 변경하기
                     state = EnemyState.Locomoting;
                 }
                 else
                 {
-                    // 공격 상태로 변경하기
                     state = EnemyState.Attacking;
                     timeToAttack = 2f;
                 }
             }
 
-            if (!gameManagerInstance.IsInBattle) gameManagerInstance.IsInBattle = true;
+            if (!gameManagerInstance.IsInBattle)
+                gameManagerInstance.IsInBattle = true;
         }
         else if (gameManagerInstance.PlayersAlive.Count > 0)
         {
@@ -380,88 +379,4 @@ public class Enemy : Character, ISelectable
 
         hasEnmityListBeenUpdated = false;
     }
-
-    //public Statistics GetStats()
-    //{
-    //    return Stats;
-    //}
-
-    //public void UpdateStatBars()
-    //{
-    //    if (IsDead) return;
-
-    //    if (Stats[Stat.HitPoints] > 0f)
-    //    {
-    //        enemyHPDisplay.UpdateHPBar(Stats[Stat.HitPoints], Stats[Stat.MaximumHitPoints]);
-    //    }
-    //    else
-    //    {
-    //        enemyHPDisplay.UpdateHPBar(0, 1);
-    //        IsDead = true;
-    //    }
-    //}
-
-    //public void IncreaseStat(Stat stat, int increment, bool shouldShowHPChangeDigits, bool isChangingOverTime)
-    //{
-    //    Stats[stat] += increment;
-
-    //    switch (stat)
-    //    {
-    //        case Stat.HitPoints:
-    //            {
-    //                if (Stats[stat] > Stats[Stat.MaximumHitPoints])
-    //                    Stats[stat] = Stats[Stat.MaximumHitPoints];
-    //            }
-    //            break;
-    //        case Stat.ManaPoints:
-    //            {
-    //                if (Stats[stat] > Stats[Stat.MaximumManaPoints])
-    //                    Stats[stat] = Stats[Stat.MaximumManaPoints];
-    //            }
-    //            break;
-    //    }
-    //}
-
-    //public void DecreaseStat(Stat stat, int decrement, bool shouldShowHPChangeDigits, bool isChangingOverTime)
-    //{
-    //    Stats[stat] -= decrement;
-
-    //    switch (stat)
-    //    {
-    //        case Stat.HitPoints:
-    //            {
-    //                if (Stats[stat] < 0)
-    //                {
-    //                    Stats[stat] = 0;
-    //                    if (!IsDead)
-    //                    {
-    //                        UpdateStatBars();
-    //                        IsDead = true;
-    //                        gameManagerInstance.EnemiesAlive.Remove(Identifier);
-    //                        gameManagerInstance.onGameTick.RemoveListener(UpdateStat);
-    //                        // StartCoroutine(EndGame());
-    //                        enemyIStatChangeDisplay.RemoveAllDisplayingBuffs();
-    //                        state = EnemyState.Dying;
-    //                    }
-    //                }
-
-    //                if (shouldShowHPChangeDigits)
-    //                {
-    //                    if (isChangingOverTime)
-    //                        enemyIStatChangeDisplay.ShowHitPointsChangeOverTime(decrement, true);
-    //                    else
-    //                        enemyIStatChangeDisplay.ShowHitPointsChange(decrement, true, null);
-    //                }
-
-    //                UpdateStatBars();
-    //            }
-    //            break;
-    //        case Stat.ManaPoints:
-    //            {
-    //                if (Stats[stat] < 0)
-    //                    Stats[stat] = 0;
-    //            }
-    //            break;
-    //    }
-    //}
 }

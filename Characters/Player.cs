@@ -2,6 +2,7 @@
 using UnityEngine;
 using Characters.Handlers;
 using UnityEngine.Events;
+using GameData;
 
 public sealed partial class Player : Character
 {
@@ -15,7 +16,185 @@ public sealed partial class Player : Character
     private static readonly int Idle2On = Animator.StringToHash("Idle2 On");
     private static readonly int LandMode = Animator.StringToHash("LandMode");
 
-    IEnumerator BlockMovementTemporarily(float timeInSeconds, UnityAction onEnd)
+    private GameManager gameManagerInstance;
+    private KeyManager keyManagerInstance;
+    private Transform playerTransform;
+    private Transform audioListenerTransform;
+    private Transform mainCameraTransform;
+
+    private int animatorStateHash, idle1Hash, idle2Hash;
+    private float idleTimeout;
+
+    private int movementMode = 0b100;
+
+    private const float InitialJumpUpSpeed = 2.4f; // 도약용 변수
+
+    private HumanoidFeetIK playerFeetIK;
+
+    private UnityEvent onLand, onFall, onJumpUp, onDie;
+
+    private Coroutine landCoroutine;
+
+    private PlayerCastingBarDisplay playerCastingBarDisplay;
+
+    [SerializeField] private HitAndManaPointsDisplay hitAndManaPointsDisplay;
+
+    private IStatChangeDisplay playerIStatChangeDisplay;
+
+    private ISelectable currentTargetISelectable;
+    private StatChangeHandler currentTargetStatChangeHandler;
+
+    private int autoHitPointsRegeneration, autoManaPointsRegeneration;
+
+
+    private float timeToTurnOffBattleMode = 3f;
+
+    public IStatChangeDisplay PlayerIStatChangeDisplay => playerIStatChangeDisplay;
+
+    [SerializeField] private PlayerActionHandler actionHandler;
+    public float VisibleGlobalCoolDownTime => actionHandler.VisibleGlobalCoolDownTime;
+
+    [SerializeField] private ActionButtons actionButtons;
+
+    protected override void Awake()
+    {
+        playerTransform = gameObject.transform;
+        gameManagerInstance = GameManager.Instance;
+        keyManagerInstance = KeyManager.Instance;
+        Controller = gameObject.GetComponent<CharacterController>();
+        ControllerTransform = Controller.transform;
+
+        playerCastingBarDisplay = FindObjectOfType<PlayerCastingBarDisplay>();
+
+        playerIStatChangeDisplay = FindObjectOfType<PlayerStatChangeDisplay>();
+
+        NegativeGravity = Physics.gravity.y;
+        DragFactor = new Vector3(0.95f, 0.95f, 0.95f);
+
+        Velocity.y = 0f;
+        Animator = gameObject.GetComponent<Animator>();
+        mainCameraTransform = GameObject.Find("Main Camera").transform;
+        Animator.SetFloat(IdleTimeout, Random.Range(5f, 20f));
+        idle1Hash = Animator.StringToHash("Idle 1");
+        idle2Hash = Animator.StringToHash("Idle 2");
+        GroundCheckerPos = ControllerTransform.position;
+        GroundCheckerPos.y += Controller.center.y - Controller.height * 0.5f;
+
+        GroundCheckStartY = Controller.stepOffset;
+
+        onJumpUp = new UnityEvent();
+        onFall = new UnityEvent();
+        onLand = new UnityEvent();
+        onDie = new UnityEvent();
+
+        onJumpUp.AddListener(Jump);
+        onFall.AddListener(Fall);
+        onLand.AddListener(Land);
+        onDie.AddListener(Die);
+
+        IsAbleToMove = true;
+
+        landCoroutine = null;
+
+        currentTargetISelectable = null;
+        currentTargetStatChangeHandler = null;
+
+        audioListenerTransform = gameObject.GetComponentInChildren<AudioListener>().transform;
+
+        base.Awake();
+    }
+
+    protected override void Start()
+    {
+        playerFeetIK = gameObject.GetComponent<HumanoidFeetIK>();
+        onJumpUp.AddListener(playerFeetIK.DisableFeetIK);
+        onFall.AddListener(playerFeetIK.DisableFeetIK);
+
+        Identifier = gameManagerInstance.AddPlayerAlive(Identifier, playerTransform);
+        SetStats();
+        SetStatPointsRegeneratingEvent();
+        InitializeStatChangeHandler();
+
+        InitializeCharacterActionHandler();
+        actionHandler.SetPlayerIdentifier(Identifier);
+        actionHandler.SetActionCommands(PlayerIStatChangeDisplay, actionButtons);
+        actionHandler.SetPlayerReferences(Animator, playerTransform, v => GoalRotation = v);
+
+        gameManagerInstance.onGameTick.AddListener(UpdateStat);
+    }
+
+    private void SetStats()
+    {
+        Stats = new StatisticsBuilder()
+            .SetBaseValue(Stat.HitPoints, 5000)
+            .SetBaseValue(Stat.MaximumHitPoints, 5000)
+            .SetBaseValue(Stat.ManaPoints, 5000)
+            .SetBaseValue(Stat.MaximumManaPoints, 5000)
+            .SetBaseValue(Stat.MeleeAttack, 10)
+            .SetBaseValue(Stat.MeleeDefense, 10)
+            .SetBaseValue(Stat.MagicAttack, 100)
+            .SetBaseValue(Stat.MagicDefense, 100)
+            .SetBaseValue(Stat.HitPointsRestorability, 300)
+            .SetBaseValue(Stat.ManaPointsRestorability, 480)
+            .SetBaseValue(Stat.LocomotionSpeed, 6);
+
+        autoHitPointsRegeneration = (int)(Stats[Stat.MaximumHitPoints] * 0.008f);
+        autoManaPointsRegeneration = (int)(Stats[Stat.MaximumManaPoints] * 0.025f);
+    }
+
+    private void SetStatPointsRegeneratingEvent()
+    {
+        gameManagerInstance.onGameTick.AddListener(RegenerateStatPoints);
+    }
+
+    private void InitializeStatChangeHandler()
+    {
+        statChangeHandler.Initialize(
+            new StatChangeHandler.InitializationContext
+            {
+                identifier = Identifier,
+                stats = Stats,
+                hitAndManaPointsDisplay = hitAndManaPointsDisplay,
+                statChangeDisplay = playerIStatChangeDisplay,
+                onHitPointsBecomeZero = () => onDie.Invoke()
+            });
+    }
+
+    private void InitializeCharacterActionHandler()
+    {
+        actionHandler.Initialize(
+            new CharacterActionHandler.InitializationContext
+            {
+                actionToTake = 0,
+                actionBeingTaken = 0,
+                isCasting = false,
+                globalCoolDownTime = 2f,
+                visibleGlobalCoolDownTime = 0f,
+                invisibleGlobalCoolDownTime = 0f,
+                sqrDistanceFromCurrentTarget = 0f,
+                castingBarDisplay = playerCastingBarDisplay,
+                characterActions = new CharacterActions(),
+                stats = Stats
+            });
+    }
+
+    private void RegenerateStatPoints()
+    {
+        if (statChangeHandler.HasZeroHitPoints) return;
+
+        if (Animator.GetBool(BattlePoseOn))
+        {
+            statChangeHandler.IncreaseStat(Stat.HitPoints, (int)(autoHitPointsRegeneration * Random.Range(0.4f, 0.6f)));
+            statChangeHandler.IncreaseStat(Stat.ManaPoints, (int)(autoManaPointsRegeneration * Random.Range(0.4f, 0.6f)));
+        }
+        else
+        {
+            statChangeHandler.IncreaseStat(Stat.HitPoints, (int)(autoHitPointsRegeneration * Random.Range(0.9f, 1.1f)));
+            statChangeHandler.IncreaseStat(Stat.ManaPoints, (int)(autoManaPointsRegeneration * Random.Range(0.9f, 1.1f)));
+        }
+    }
+
+    private IEnumerator BlockMovementTemporarily(float timeInSeconds, UnityAction onEnd)
     {
         IsAbleToMove = false;
         yield return new WaitForSeconds(timeInSeconds);
@@ -23,7 +202,7 @@ public sealed partial class Player : Character
         onEnd?.Invoke();
     }
 
-    IEnumerator EndGame()
+    private IEnumerator EndGame()
     {
         Animator.SetTrigger(Dead);
         playerFeetIK.DisableFeetIK();
@@ -31,23 +210,21 @@ public sealed partial class Player : Character
         actionHandler.RemoveActionToTake();
         playerIStatChangeDisplay.RemoveAllDisplayingBuffs();
         DeselectTarget();
-        yield return new WaitForSeconds(0.5f); // 리마인더: 시간은 변경하여야 할 수도 있다.
+        yield return new WaitForSeconds(0.5f);
 
         gameManagerInstance.State = GameState.Over;
     }
 
     protected override void FixedUpdate()
     {
+        actionHandler.UpdateGlobalCoolDownTime();
+
+        UpdateAudioListenerRotation();
+
         if (gameManagerInstance.State == GameState.Over || statChangeHandler.HasZeroHitPoints)
             return;
 
-        actionHandler.UpdateGlobalCoolDownTime();
-
-        // 오디오 리스너 회전 갱신(카메라가 보는 방향을 보도록)
-        audioListenerTransform.rotation = Quaternion.LookRotation(audioListenerTransform.position - mainCameraTransform.position);
-
         actionHandler.UpdateSqrDistanceFromCurrentTarget(currentTargetStatChangeHandler.SelfOrNull()?.HasZeroHitPoints ?? false, DeselectTarget);
-        onUpdateSqrDistanceFromCurrentTarget.Invoke();
 
         if (!gameManagerInstance.IsInBattle && Animator.GetBool(BattlePoseOn) && timeToTurnOffBattleMode > 0f)
         {
@@ -58,6 +235,11 @@ public sealed partial class Player : Character
                 Animator.SetBool(BattlePoseOn, false);
             }
         }
+    }
+
+    private void UpdateAudioListenerRotation()
+    {
+        audioListenerTransform.rotation = Quaternion.LookRotation(audioListenerTransform.position - mainCameraTransform.position);
     }
 
     protected override void Update()
@@ -272,13 +454,13 @@ public sealed partial class Player : Character
         }
     }
 
-    void Fall()
+    private void Fall()
     {
         Animator.SetBool(InTheAir, true);
         Animator.SetInteger(LandMode, 0);
     }
 
-    void Die()
+    private void Die()
     {
         gameManagerInstance.onGameTick.RemoveListener(UpdateStat);
         gameManagerInstance.PlayersAlive.Remove(Identifier);

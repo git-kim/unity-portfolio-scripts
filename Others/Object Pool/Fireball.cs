@@ -28,35 +28,26 @@ public class Fireball : MonoBehaviour, IPoolable
 
     private Vector3 origin, middlePosition, destination, currentPosition, nextPosition;
     private SphereCollider sphereCollider;
-    private GameObject target;
     private CharacterController targetController;
 
-    #region 코루틴
     private IEnumerator DisableAfterWaiting(float timeInSeconds, GameObject gameObject)
     {
         yield return new WaitForSeconds(timeInSeconds);
         gameObject.SetActive(false);
     }
-    #endregion
 
-    // 참고: When you call Instantiate on a prefab, the Awake() function is run immediately, but NOT the Start() function.
-    // (https://forum.unity.com/threads/instantiate-prefabs-and-start-awake-functions.197811/)
     private void Awake()
     {
         spawner = FindObjectOfType<FireballSpawner>();
 
         if (!(muzzleParticle == null))
         {
-            // muzzleParticle = Instantiate(muzzleParticle, spawner.transform.position, Quaternion.identity, gameObject.transform);
             muzzleParticle.SetActive(false);
         }
 
-        // projectileParticle = Instantiate(projectileParticle, spawner.transform.position, Quaternion.identity, gameObject.transform);
         projectileParticle.SetActive(false);
 
-        // impactParticle = Instantiate(impactParticle, spawner.transform.position, Quaternion.identity, gameObject.transform);
         impactParticle.SetActive(false);
-
 
         sphereCollider = projectileParticle.GetComponent<SphereCollider>();
 
@@ -74,14 +65,8 @@ public class Fireball : MonoBehaviour, IPoolable
 
     public void SetTarget(GameObject target)
     {
-        this.target = target; // GameObject.Find("Enemy");
         targetController = target.GetComponent<CharacterController>();
-
-        // targetStats = target.GetComponent<IActable>().GetStats();
         targetStatChangeHandler = target.GetComponent<StatChangeHandler>();
-
-        if (targetController == null)
-            Debug.LogError("Target CharacterController not found.");
     }
 
     public void Fire(int damageToTarget, in string actionName)

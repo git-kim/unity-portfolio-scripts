@@ -15,13 +15,7 @@ public class FireballSpell : NonSelfTargetedAction
     public FireballSpell(GameObject actor)
     {
         actorStatChangeHandler = actor.GetComponent<StatChangeHandler>();
-        if (actorStatChangeHandler.SelfOrNull() == null)
-            Debug.LogError(GetType().Name + " 사용 객체에 IDamageable이 존재하지 않습니다.");
-
         fireballSpawner = actor.GetComponentInChildren<FireballSpawner>();
-        if (fireballSpawner == null)
-            Debug.LogError(GetType().Name + " 사용 객체에 FireballSpawner가 존재하지 않습니다.");
-
         ActorMonoBehaviour = actor.GetComponent<MonoBehaviour>();
         ActorActionHandler = actor.GetComponent<CharacterActionHandler>();
         ActorAnimator = actor.GetComponent<Animator>();
@@ -29,17 +23,16 @@ public class FireballSpell : NonSelfTargetedAction
         ActorTransform = actor.transform;
     }
 
-    // 액션 취하기용 코루틴
     private IEnumerator TakeAction(int mPCost, float range, int actionID, int actorID)
     {
-        // 거리 검사
+        // Check Distance
         if (Vector3.SqrMagnitude(ActorTransform.position - Target.transform.position) > range * range)
         {
-            GameManagerInstance.ShowErrorMessage(1); // 거리 초과 메시지 출력
+            GameManagerInstance.ShowErrorMessage(1);
             yield break;
         }
 
-        ActorAnimator.SetInteger(ActionMode, actionID); // ActionMode에 actionID 값을 저장한다(애니메이션 시작).
+        ActorAnimator.SetInteger(ActionMode, actionID);
         ActorActionHandler.ActionBeingTaken = actionID;
 
         ActionName = ActorActionHandler.CharacterActions[actionID].name;
@@ -53,6 +46,7 @@ public class FireballSpell : NonSelfTargetedAction
         yield return new WaitForSeconds(CastTime);
 
         ActorActionHandler.IsCasting = false;
+
         if (!actorStatChangeHandler.HasZeroHitPoints && !targetStatChangeHandler.HasZeroHitPoints)
         {
             fireballSpawner.SpawnFireball(Target, ActorStats[Stat.MagicAttack], in ActionName);
@@ -64,7 +58,6 @@ public class FireballSpell : NonSelfTargetedAction
                 enemy.IncreaseEnmity(actorID, 2);
             }
         }
-
 
         if (ActorAnimator.GetInteger(ActionMode) == actionID)
             ActorAnimator.SetInteger(ActionMode, 0);

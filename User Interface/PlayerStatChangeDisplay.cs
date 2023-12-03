@@ -3,7 +3,7 @@ using UnityEngine;
 
 public class PlayerStatChangeDisplay : MonoBehaviour, IStatChangeDisplay
 {
-    private BuffInfoList buffs;
+    private BuffInformationList buffs;
     private PlayerBuffInfoDisplay playerBuffInfoDisplay;
     private ObjectPoolManager objectPoolManagerInstance;
     private Vector3 hPChangeObjectSpawnLocalPos;

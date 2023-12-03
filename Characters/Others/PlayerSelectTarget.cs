@@ -20,6 +20,9 @@ public class PlayerSelectTarget : MonoBehaviour
         if (!keyManagerInstance.LMBDown)
             return;
 
+        if (player.IsDead)
+            return;
+
         ray = mainCamera.ScreenPointToRay(Input.mousePosition);
 
         if (UICamera.Raycast(Input.mousePosition)) // NGUI

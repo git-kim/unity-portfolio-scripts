@@ -19,11 +19,11 @@ public class PlayerBuffInfoDisplay : MonoBehaviour
     }
 
     private Player player;
-    private BuffInfoList buffs;
+    private BuffInformationList buffs;
     private readonly List<BuffInfoObj> currentActiveBuffs = new List<BuffInfoObj>();
     private readonly List<BuffInfoObj> availableBuffs = new List<BuffInfoObj>();
     private UIGrid displayGrid;
-    private int maxDisplayableBuffs; // 리마인더: 버프 수가 많지 않아서 사용하지 않았다.
+    private int maxDisplayableBuffs; // not used
 
     private void Awake()
     {
@@ -35,13 +35,16 @@ public class PlayerBuffInfoDisplay : MonoBehaviour
     {
         player = FindObjectOfType<Player>();
         buffs = GameManager.Instance.Buffs;
+        var count = buffs.Count;
 
-        foreach (BuffInformationObject buff in buffs)
+        for (var i = 0; i < count; ++i)
         {
+            var buff = buffs[i];
+
             var prefab = Instantiate(buff.indicatorPrefab, gameObject.transform, false);
             prefab.SetActive(false);
 
-            availableBuffs.Add(new BuffInfoObj(buff.id, prefab, prefab.GetComponentInChildren<UILabel>()));
+            availableBuffs.Add(new BuffInfoObj(i, prefab, prefab.GetComponentInChildren<UILabel>()));
         }
     }
 

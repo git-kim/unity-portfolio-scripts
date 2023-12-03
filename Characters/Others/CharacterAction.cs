@@ -16,7 +16,7 @@ public class CharacterAction
     public struct CreationContext
     {
         public int id;
-        public ICommand actionCommand;
+        public CharacterActionCommand actionCommand;
         public CharacterActionTargetType targetType;
         public float castTime;
         public float coolDownTime;
@@ -28,7 +28,7 @@ public class CharacterAction
         public string description;
         public bool canIgnoreVisibleGlobalCoolDownTime;
 
-        public CreationContext(int id, ICommand actionCommand, CharacterActionTargetType targetType,
+        public CreationContext(int id, CharacterActionCommand actionCommand, CharacterActionTargetType targetType,
             float castTime, float coolDownTime = 2f, float invisibleGlobalCoolDownTime = 0.5f,
             float range = 0f, float areaOfEffectRadius = 0f, int manaPointsCost = 0,
             string name = null, string description = null, bool canIgnoreVisibleGlobalCoolDownTime = false)
@@ -49,7 +49,7 @@ public class CharacterAction
     }
 
     public int id;
-    public ICommand actionCommand;
+    public CharacterActionCommand actionCommand;
     public CharacterActionTargetType targetType;
     public float castTime;
     public float coolDownTime;

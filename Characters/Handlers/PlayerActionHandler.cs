@@ -58,7 +58,7 @@ namespace Characters.Handlers
             CharacterActions.Add(new CharacterAction(
                 new CharacterAction.CreationContext(3, hitPointsHealingAbility,
                 CharacterActionTargetType.Self,
-                0f, globalCoolDownTime, 0.5f, 0f, 0f, 800,
+                0f, globalCoolDownTime, 0.5f, 0f, 0f, 700,
                 "HP 회복", "HP를 10초 동안 일정 시간마다 소량 회복한다.")));
 
             var manaPointsHealingAbility = new ManaPointsHealingAbility(gameObject, 2,
@@ -199,6 +199,7 @@ namespace Characters.Handlers
                 onTargetToDeselect.Invoke();
             }
 
+            onSqrDistanceFromCurrentTargetUpdated?.Invoke();
         }
 
         public void SetLookAtValues()

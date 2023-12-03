@@ -136,7 +136,7 @@ public class CurseSpell : NonSelfTargetedAction
         ActionName = actionInfo.name;
 
         if (target.TryGetComponent<Enemy>(out var enemy))
-            targetIStatChangeDisplay = enemy.EnemyIStatChangeDisplay;
+            targetIStatChangeDisplay = enemy.StatChangeDisplay;
 
         if (!IsBuffOn)
             CurrentActionCoroutine = ActorMonoBehaviour.StartCoroutine(TakeAction(actionInfo.id, actorID, particleEffectName, targetTransform, Vector3.up * (targetTransform.lossyScale.y - 1f), Vector3.zero, targetTransform.localScale));

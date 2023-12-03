@@ -3,8 +3,9 @@ using UnityEngine;
 
 public class EnemyStatChangeDisplay : MonoBehaviour, IStatChangeDisplay
 {
-    private BuffInfoList buffs;
     private ObjectPoolManager objectPoolManagerInstance;
+
+    private BuffInformationList buffs;
 
     private readonly List<GameObject> buffEndObjInUse = new List<GameObject>();
     private readonly List<GameObject> buffStartObjInUse = new List<GameObject>();
@@ -35,10 +36,11 @@ public class EnemyStatChangeDisplay : MonoBehaviour, IStatChangeDisplay
 
     private void Start()
     {
+        buffs = GameManager.Instance.Buffs;
+
         var enemy = FindObjectOfType<Enemy>();
         enemyObject = enemy.gameObject;
         enemyTransform = enemy.transform;
-        buffs = GameManager.Instance.Buffs;
         offsetVector = enemyTransform.lossyScale.y * enemy.GetComponent<CharacterController>().height * 0.5f * Vector3.up;
         //enemyActionCommands = enemy.ActionCommands;
         mainCamera = Camera.main;
@@ -141,7 +143,7 @@ public class EnemyStatChangeDisplay : MonoBehaviour, IStatChangeDisplay
 
     public void RemoveAllDisplayingBuffs()
     {
-        // 리마인더: 구현하지 않았다.
+        // not implemented yet.
     }
 
     private void UpdateList(List<GameObject> list, bool shouldMove)

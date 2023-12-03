@@ -2,18 +2,39 @@
 
 public class HitAndManaPointsDisplay : MonoBehaviour
 {
-    [SerializeField] private UIProgressBar[] playerHPMPBars;
-    [SerializeField] private UILabel[] playerHPMPDigitsLabels;
+    [SerializeField] private UIProgressBar hitPointsBar;
+    [SerializeField] private UIProgressBar manaPointsBar;
+    [SerializeField] private UILabel hitPointsDigitsLabel;
+    [SerializeField] private UILabel manaPointsDigitsLabel;
 
-    public void UpdateHitPointsBar(int currentHP, int maxHP)
+    public void UpdateHitPointsBar(int currentPoints, int maximumPoints)
     {
-        playerHPMPBars[0].Set((float)currentHP / maxHP, false);
-        playerHPMPDigitsLabels[0].text = Mathf.Clamp(currentHP, 0, currentHP).ToString();
+        if (!hitPointsBar)
+            return;
+
+        hitPointsBar.Set((float)currentPoints / maximumPoints, false);
     }
 
-    public void UpdateManaPointsBar(int currentMP, int maxMP)
+    public void UpdateHitPointsText(int currentPoints)
     {
-        playerHPMPBars[1].Set((float)currentMP / maxMP, false);
-        playerHPMPDigitsLabels[1].text = Mathf.Clamp(currentMP, 0, currentMP).ToString();
+        if (!hitPointsDigitsLabel)
+            return;
+
+        hitPointsDigitsLabel.text = currentPoints.ToString();
+    }
+    public void UpdateManaPointsBar(int currentPoints, int maximumPoints)
+    {
+        if (!manaPointsBar)
+            return;
+
+        manaPointsBar.Set((float)currentPoints / maximumPoints, false);
+    }
+
+    public void UpdateManaPointsText(int currentPoints)
+    {
+        if (!manaPointsDigitsLabel)
+            return;
+
+        manaPointsDigitsLabel.text = currentPoints.ToString();
     }
 }

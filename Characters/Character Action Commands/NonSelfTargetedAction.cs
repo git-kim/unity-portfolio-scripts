@@ -3,11 +3,9 @@ using GameData;
 using CommandPattern;
 using Characters.Handlers;
 
-public abstract class NonSelfTargetedAction: ICommand
+public abstract class NonSelfTargetedAction : CharacterActionCommand
 {
     protected readonly GameManager GameManagerInstance = GameManager.Instance;
-
-    public Coroutine CurrentActionCoroutine { get; set; } = null;
 
     protected string ActionName;
 
@@ -26,8 +24,4 @@ public abstract class NonSelfTargetedAction: ICommand
     protected float InvisibleGlobalCoolDownTime { get; set; }
 
     protected float CoolDownTime { get; set; }
-
-    public abstract void Execute(int actorID, GameObject target, CharacterAction actionInfo);
-
-    public abstract void Stop();
 }

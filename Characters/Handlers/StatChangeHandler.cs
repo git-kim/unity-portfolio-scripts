@@ -63,8 +63,11 @@ namespace Characters.Handlers
             statChangeDisplay = context.statChangeDisplay;
             OnHitPointsBecomeZero = context.onHitPointsBecomeZero;
 
-            UpdateHitPointsBar();
-            UpdateManaPointsBar();
+            if (hitAndManaPointsDisplay)
+            {
+                UpdateHitPointsDisplay();
+                UpdateManaPointsDisplay();
+            }
         }
 
         public void IncreaseStat(Stat stat, int increment)
@@ -77,14 +80,18 @@ namespace Characters.Handlers
                     {
                         var maximumValue = stats[Stat.MaximumHitPoints];
                         stats[stat] = Mathf.Min(value, maximumValue);
-                        UpdateHitPointsBar();
+
+                        if (hitAndManaPointsDisplay)
+                            UpdateHitPointsDisplay();
                     }
                     break;
                 case Stat.ManaPoints:
                     {
                         var maximumValue = stats[Stat.MaximumManaPoints];
                         stats[stat] = Mathf.Min(value, maximumValue);
-                        UpdateManaPointsBar();
+
+                        if (hitAndManaPointsDisplay)
+                            UpdateManaPointsDisplay();
                     }
                     break;
             }
@@ -98,33 +105,37 @@ namespace Characters.Handlers
             {
                 case Stat.HitPoints:
                     {
-                        if (value == 0 && !hasZeroHitPoints)
+                        if (value == 0 && !HasZeroHitPoints)
                         {
                             DecreaseStat(Stat.ManaPoints, stats[Stat.ManaPoints]);
-                            hasZeroHitPoints = true;
+                            HasZeroHitPoints = true;
                         }
 
-                        UpdateHitPointsBar();
+                        if (hitAndManaPointsDisplay)
+                            UpdateHitPointsDisplay();
                     }
                     break;
                 case Stat.ManaPoints:
                     {
-                        UpdateManaPointsBar();
+                        if (hitAndManaPointsDisplay)
+                            UpdateManaPointsDisplay();
                     }
                     break;
             }
         }
 
-        private void UpdateHitPointsBar()
+        public void UpdateHitPointsDisplay()
         {
-            hitAndManaPointsDisplay.SelfOrNull()?
-                .UpdateHitPointsBar(stats[Stat.HitPoints], stats[Stat.MaximumHitPoints]);
+            var currentPoints = stats[Stat.HitPoints];
+            hitAndManaPointsDisplay.UpdateHitPointsBar(currentPoints, stats[Stat.MaximumHitPoints]);
+            hitAndManaPointsDisplay.UpdateHitPointsText(currentPoints);
         }
 
-        private void UpdateManaPointsBar()
+        private void UpdateManaPointsDisplay()
         {
-            hitAndManaPointsDisplay.SelfOrNull()?
-                           .UpdateManaPointsBar(stats[Stat.ManaPoints], stats[Stat.MaximumManaPoints]);
+            var currentPoints = stats[Stat.ManaPoints];
+            hitAndManaPointsDisplay.UpdateManaPointsBar(currentPoints, stats[Stat.MaximumManaPoints]);
+            hitAndManaPointsDisplay.UpdateManaPointsText(currentPoints);
         }
 
         public void ShowHitPointsChange(int change, bool isDecrement, string actionName)
