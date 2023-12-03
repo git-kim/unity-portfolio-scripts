@@ -1,4 +1,7 @@
-﻿public interface IPoolable
+﻿namespace ObjectPool
 {
-    void OnObjectSpawn();
+    public interface IPoolable
+    {
+        void OnObjectSpawn();
+    }
 }

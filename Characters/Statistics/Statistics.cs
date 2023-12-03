@@ -1,4 +1,4 @@
-namespace GameData
+namespace Characters.StatisticsScripts
 {
     public class Statistics
     {
@@ -7,7 +7,7 @@ namespace GameData
 
         internal Statistics(int[] values)
         {
-            this.baseValues = values;
+            baseValues = values;
             offsets = new int[values.Length];
         }
 

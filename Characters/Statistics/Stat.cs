@@ -1,4 +1,4 @@
-﻿namespace GameData
+﻿namespace Characters.StatisticsScripts
 {
     public enum Stat
     {

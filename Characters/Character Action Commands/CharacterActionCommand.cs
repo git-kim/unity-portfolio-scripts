@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace CommandPattern
+namespace Characters.CharacterActionCommands
 {
     public abstract class CharacterActionCommand
     {

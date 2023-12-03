@@ -13,10 +13,9 @@ public static class Utilities
     /// <param name="pos1">보간 기준점</param>
     /// <param name="pos2">도착점</param>
     /// <param name="t">범위: 0(포함) ~ 1(포함)</param>
-    /// <returns></returns>
+    /// <returns>t에 대응하는 값</returns>
     public static Vector3 GetQuadraticBezierPoint(ref Vector3 pos0, ref Vector3 pos1, ref Vector3 pos2, float t)
     {
-        // t = Mathf.Clamp(t, 0f, 1f);
         return Mathf.Pow((1f - t), 2f) * pos0 + 2f * (1f - t) * t * pos1 + Mathf.Pow(t, 2f) * pos2;
     }
 
@@ -27,7 +26,7 @@ public static class Utilities
     /// </summary>
     /// <param name="minValue">범위 시작점 값(포함)</param>
     /// <param name="maxValue">범위 끝점 값(포함)</param>
-    /// <returns></returns>
+    /// <returns>결정된 값</returns>
     public static float GetRandomFloatFromSineDistribution(float minValue, float maxValue)
     {
         if (minValue > maxValue)
@@ -57,5 +56,10 @@ public static class Utilities
         }
 
         return target;
+    }
+
+    public static void SetActive(this Component component, bool value)
+    {
+        component.gameObject.SelfOrNull()?.SetActive(value);
     }
 }

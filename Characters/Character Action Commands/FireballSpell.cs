@@ -1,128 +1,132 @@
 ﻿using UnityEngine;
-using GameData;
 using System.Collections;
 using Characters.Handlers;
+using ObjectPool;
+using Characters.StatisticsScripts;
 
-public class FireballSpell : NonSelfTargetedAction
+namespace Characters.CharacterActionCommands
 {
-    private readonly FireballSpawner fireballSpawner;
-    private readonly StatChangeHandler actorStatChangeHandler;
-    private StatChangeHandler targetStatChangeHandler;
-    private int actionID;
-    private int mPCost;
-    private float range;
-
-    public FireballSpell(GameObject actor)
+    public class FireballSpell : NonSelfTargetedAction
     {
-        actorStatChangeHandler = actor.GetComponent<StatChangeHandler>();
-        fireballSpawner = actor.GetComponentInChildren<FireballSpawner>();
-        ActorMonoBehaviour = actor.GetComponent<MonoBehaviour>();
-        ActorActionHandler = actor.GetComponent<CharacterActionHandler>();
-        ActorAnimator = actor.GetComponent<Animator>();
-        ActorStats = ActorActionHandler.Stats;
-        ActorTransform = actor.transform;
-    }
+        private readonly FireballSpawner fireballSpawner;
+        private readonly StatChangeHandler actorStatChangeHandler;
+        private StatChangeHandler targetStatChangeHandler;
+        private int actionID;
+        private int mPCost;
+        private float range;
 
-    private IEnumerator TakeAction(int mPCost, float range, int actionID, int actorID)
-    {
-        // Check Distance
-        if (Vector3.SqrMagnitude(ActorTransform.position - Target.transform.position) > range * range)
+        public FireballSpell(GameObject actor)
         {
-            GameManagerInstance.ShowErrorMessage(1);
-            yield break;
+            actorStatChangeHandler = actor.GetComponent<StatChangeHandler>();
+            fireballSpawner = actor.GetComponentInChildren<FireballSpawner>();
+            ActorMonoBehaviour = actor.GetComponent<MonoBehaviour>();
+            ActorActionHandler = actor.GetComponent<CharacterActionHandler>();
+            ActorAnimator = actor.GetComponent<Animator>();
+            ActorStats = ActorActionHandler.Stats;
+            ActorTransform = actor.transform;
         }
 
-        ActorAnimator.SetInteger(ActionMode, actionID);
-        ActorActionHandler.ActionBeingTaken = actionID;
-
-        ActionName = ActorActionHandler.CharacterActions[actionID].name;
-
-        ActorActionHandler.VisibleGlobalCoolDownTime = CoolDownTime;
-        ActorActionHandler.InvisibleGlobalCoolDownTime = InvisibleGlobalCoolDownTime;
-
-        ActorActionHandler.CastingBarDisplay.SelfOrNull()?.ShowCastingBar(actionID, CastTime);
-        ActorActionHandler.IsCasting = true;
-
-        yield return new WaitForSeconds(CastTime);
-
-        ActorActionHandler.IsCasting = false;
-
-        if (!actorStatChangeHandler.HasZeroHitPoints && !targetStatChangeHandler.HasZeroHitPoints)
+        private IEnumerator TakeAction(int mPCost, float range, int actionID, int actorID)
         {
-            fireballSpawner.SpawnFireball(Target, ActorStats[Stat.MagicAttack], in ActionName);
-            actorStatChangeHandler.DecreaseStat(Stat.ManaPoints, mPCost);
-
-            if (targetStatChangeHandler.TryGetComponent<Enemy>(out var enemy)
-                && !actorStatChangeHandler.HasZeroHitPoints)
+            // Check Distance
+            if (Vector3.SqrMagnitude(ActorTransform.position - Target.transform.position) > range * range)
             {
-                enemy.IncreaseEnmity(actorID, 2);
+                GameManagerInstance.ShowErrorMessage(1);
+                yield break;
             }
+
+            ActorAnimator.SetInteger(ActionMode, actionID);
+            ActorActionHandler.ActionBeingTaken = actionID;
+
+            ActionName = ActorActionHandler.CharacterActions[actionID].name;
+
+            ActorActionHandler.VisibleGlobalCoolDownTime = CoolDownTime;
+            ActorActionHandler.InvisibleGlobalCoolDownTime = InvisibleGlobalCoolDownTime;
+
+            ActorActionHandler.CastingBarDisplay.SelfOrNull()?.ShowCastingBar(actionID, CastTime);
+            ActorActionHandler.IsCasting = true;
+
+            yield return new WaitForSeconds(CastTime);
+
+            ActorActionHandler.IsCasting = false;
+
+            if (!actorStatChangeHandler.HasZeroHitPoints && !targetStatChangeHandler.HasZeroHitPoints)
+            {
+                fireballSpawner.SpawnFireball(Target, ActorStats[Stat.MagicAttack], in ActionName);
+                actorStatChangeHandler.DecreaseStat(Stat.ManaPoints, mPCost);
+
+                if (targetStatChangeHandler.TryGetComponent<Enemy>(out var enemy)
+                    && !actorStatChangeHandler.HasZeroHitPoints)
+                {
+                    enemy.IncreaseEnmity(actorID, 2);
+                }
+            }
+
+            if (ActorAnimator.GetInteger(ActionMode) == actionID)
+                ActorAnimator.SetInteger(ActionMode, 0);
+
+            ActorActionHandler.ActionBeingTaken = 0;
         }
 
-        if (ActorAnimator.GetInteger(ActionMode) == actionID)
-            ActorAnimator.SetInteger(ActionMode, 0);
 
-        ActorActionHandler.ActionBeingTaken = 0;
-    }
-
-
-    public override void Execute(int actorID, GameObject target, CharacterAction actionInfo)
-    {
-        mPCost = actionInfo.manaPointsCost;
-
-        // Check Mana Points
-        if (mPCost > ActorStats[Stat.ManaPoints])
+        public override void Execute(int actorID, GameObject target, CharacterAction actionInfo)
         {
-            GameManagerInstance.ShowErrorMessage(0);
-            return;
+            mPCost = actionInfo.manaPointsCost;
+
+            // Check Mana Points
+            if (mPCost > ActorStats[Stat.ManaPoints])
+            {
+                GameManagerInstance.ShowErrorMessage(0);
+                return;
+            }
+
+            // Check Target
+            if (target == null)
+            {
+                GameManagerInstance.ShowErrorMessage(3);
+                return;
+            }
+
+            Target = target;
+            targetStatChangeHandler = target.GetComponent<StatChangeHandler>();
+
+            // Check Others
+            if (!targetStatChangeHandler || actorStatChangeHandler.Identifier.Equals(targetStatChangeHandler.Identifier))
+            {
+                GameManagerInstance.ShowErrorMessage(2);
+                return;
+            }
+
+            if (actorStatChangeHandler.HasZeroHitPoints || targetStatChangeHandler.HasZeroHitPoints)
+            {
+                return;
+            }
+
+            CastTime = actionInfo.castTime;
+            InvisibleGlobalCoolDownTime = actionInfo.invisibleGlobalCoolDownTime;
+            CoolDownTime = actionInfo.coolDownTime;
+            actionID = actionInfo.id;
+            range = actionInfo.range;
+
+            CurrentActionCoroutine = ActorMonoBehaviour.StartCoroutine(TakeAction(mPCost, range, actionID, actorID));
         }
 
-        // Check Target
-        if (target == null)
+        public override void Stop()
         {
-            GameManagerInstance.ShowErrorMessage(3);
-            return;
+            if (CurrentActionCoroutine != null)
+            {
+                ActorMonoBehaviour.StopCoroutine(CurrentActionCoroutine);
+                ActorAnimator.SetInteger(ActionMode, 0); // ActionMode 값을 초기화한다(애니메이션 중지).
+                CurrentActionCoroutine = null;
+            }
+
+            // ActorIActable.ActionToTake = 0;
+            ActorActionHandler.ActionBeingTaken = 0;
+            ActorActionHandler.VisibleGlobalCoolDownTime = 0f;
+            ActorActionHandler.InvisibleGlobalCoolDownTime = 0f;
+            ActorActionHandler.IsCasting = false;
+
+            ActorActionHandler.CastingBarDisplay.SelfOrNull()?.StopShowingCastingBar();
         }
-
-        Target = target;
-        targetStatChangeHandler = target.GetComponent<StatChangeHandler>();
-
-        // Check Others
-        if (!targetStatChangeHandler || actorStatChangeHandler.Identifier.Equals(targetStatChangeHandler.Identifier))
-        {
-            GameManagerInstance.ShowErrorMessage(2);
-            return;
-        }
-
-        if (actorStatChangeHandler.HasZeroHitPoints || targetStatChangeHandler.HasZeroHitPoints)
-        {
-            return;
-        }
-
-        CastTime = actionInfo.castTime;
-        InvisibleGlobalCoolDownTime = actionInfo.invisibleGlobalCoolDownTime;
-        CoolDownTime = actionInfo.coolDownTime;
-        actionID = actionInfo.id;
-        range = actionInfo.range;
-
-        CurrentActionCoroutine = ActorMonoBehaviour.StartCoroutine(TakeAction(mPCost, range, actionID, actorID));
-    }
-
-    public override void Stop()
-    {
-        if (CurrentActionCoroutine != null)
-        {
-            ActorMonoBehaviour.StopCoroutine(CurrentActionCoroutine);
-            ActorAnimator.SetInteger(ActionMode, 0); // ActionMode 값을 초기화한다(애니메이션 중지).
-            CurrentActionCoroutine = null;
-        }
-
-        // ActorIActable.ActionToTake = 0;
-        ActorActionHandler.ActionBeingTaken = 0;
-        ActorActionHandler.VisibleGlobalCoolDownTime = 0f;
-        ActorActionHandler.InvisibleGlobalCoolDownTime = 0f;
-        ActorActionHandler.IsCasting = false;
-
-        ActorActionHandler.CastingBarDisplay.SelfOrNull()?.StopShowingCastingBar();
     }
 }

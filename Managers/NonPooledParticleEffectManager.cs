@@ -1,71 +1,66 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public enum ParticleEffectName
+namespace Managers
 {
-    None,
-    SprintBuff,
-    HealHP,
-    HealMP,
-    CurseDebuff
-}
-
-public class NonPooledParticleEffectManager : Singleton<NonPooledParticleEffectManager>
-{
-    private NonPooledParticleEffectManager() { }
-
-    [System.Serializable] // 클래스, 구조체, 열거형, 대리자에 붙일 수 있는 특성(인스펙터에 표시 가능)
-    public class ParticleEffectInfo
+    public class NonPooledParticleEffectManager : Singleton<NonPooledParticleEffectManager>
     {
-        public ParticleEffectName name;
-        public GameObject prefab;
-        [HideInInspector] public ParticleSystem prefabParticleSystem;
-        [HideInInspector] public Transform prefabTransform;
-    }
+        private NonPooledParticleEffectManager() { }
 
-    private IEnumerator DisableAfterWaiting(float timeInSeconds, ParticleEffectInfo particleEffect)
-    {
-        yield return new WaitForSeconds(timeInSeconds);
-        particleEffect.prefabTransform.SetParent(gameObject.transform, false);
-        particleEffect.prefab.SetActive(false);
-    }
-
-    public List<ParticleEffectInfo> particleEffects = new List<ParticleEffectInfo>();
-
-    private void Awake()
-    {
-        foreach (var particleEffect in particleEffects)
+        [Serializable]
+        public class ParticleEffectInfo
         {
-            var prefab = Instantiate(particleEffect.prefab); // 참고: 프리팹을 실체화하여야 SetParent를 호출할 수 있다.
-            particleEffect.prefab = prefab;
-            particleEffect.prefabParticleSystem = prefab.GetComponent<ParticleSystem>();
-            particleEffect.prefabTransform = prefab.transform;
-            prefab.SetActive(false);
-            prefab.transform.SetParent(gameObject.transform, false);
+            public ParticleEffectName name;
+            public GameObject prefab;
+            [HideInInspector] public ParticleSystem prefabParticleSystem;
+            [HideInInspector] public Transform prefabTransform;
         }
-    }
 
-    public void PlayParticleEffect(ParticleEffectName name, Transform targetTransform, Vector3 localPosition, Vector3 toDirection, Vector3 localScale, float duration, bool shouldFollowTarget)
-    {
-        var index = particleEffects.FindIndex(effect => effect.name == name);
-        var effectToPlay = particleEffects[index];
+        private IEnumerator DisableAfterWaiting(float timeInSeconds, ParticleEffectInfo particleEffect)
+        {
+            yield return new WaitForSeconds(timeInSeconds);
+            particleEffect.prefabTransform.SetParent(gameObject.transform, false);
+            particleEffect.prefab.SetActive(false);
+        }
 
-        if (shouldFollowTarget)
-            effectToPlay.prefabTransform.SetParent(targetTransform, false);
+        public List<ParticleEffectInfo> particleEffects = new List<ParticleEffectInfo>();
 
-        effectToPlay.prefabTransform.localPosition = localPosition;
+        private void Awake()
+        {
+            foreach (var particleEffect in particleEffects)
+            {
+                var prefab = Instantiate(particleEffect.prefab); // 참고: 프리팹을 실체화하여야 SetParent를 호출할 수 있다.
+                particleEffect.prefab = prefab;
+                particleEffect.prefabParticleSystem = prefab.GetComponent<ParticleSystem>();
+                particleEffect.prefabTransform = prefab.transform;
+                prefab.SetActive(false);
+                prefab.transform.SetParent(gameObject.transform, false);
+            }
+        }
 
-        if (toDirection != Vector3.zero)
-            effectToPlay.prefabTransform.rotation = Quaternion.FromToRotation(effectToPlay.prefabTransform.rotation.eulerAngles, toDirection);
+        public void PlayParticleEffect(ParticleEffectName name, Transform targetTransform, Vector3 localPosition, Vector3 toDirection, Vector3 localScale, float duration, bool shouldFollowTarget)
+        {
+            var index = particleEffects.FindIndex(effect => effect.name == name);
+            var effectToPlay = particleEffects[index];
 
-        effectToPlay.prefabTransform.localScale = localScale;
+            if (shouldFollowTarget)
+                effectToPlay.prefabTransform.SetParent(targetTransform, false);
+
+            effectToPlay.prefabTransform.localPosition = localPosition;
+
+            if (toDirection != Vector3.zero)
+                effectToPlay.prefabTransform.rotation = Quaternion.FromToRotation(effectToPlay.prefabTransform.rotation.eulerAngles, toDirection);
+
+            effectToPlay.prefabTransform.localScale = localScale;
 
 
-        effectToPlay.prefabParticleSystem.Simulate(0.0f, true, true);
-        effectToPlay.prefab.SetActive(true);
-        effectToPlay.prefabParticleSystem.Play();
+            effectToPlay.prefabParticleSystem.Simulate(0.0f, true, true);
+            effectToPlay.prefab.SetActive(true);
+            effectToPlay.prefabParticleSystem.Play();
 
-        StartCoroutine(DisableAfterWaiting(duration, effectToPlay));
+            StartCoroutine(DisableAfterWaiting(duration, effectToPlay));
+        }
     }
 }

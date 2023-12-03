@@ -1,7 +1,8 @@
 ﻿using System.Collections;
 using System.Linq;
 using UnityEngine;
-using GameData;
+using Managers;
+using Characters.StatisticsScripts;
 
 public class OffGlobalCoolDownActionButton : ActionButton
 {

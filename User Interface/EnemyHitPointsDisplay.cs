@@ -1,53 +1,59 @@
 ﻿using UnityEngine;
 
-public class EnemyHitPointsDisplay : HitAndManaPointsDisplay
+namespace UserInterface
 {
-    private GameObject enemy;
-    private Camera mainCamera;
-    private Transform mainCameraTransform;
-    private Transform enemyTransform;
-    private Transform enemyHitPointsDisplayTransform;
-    private UIProgressBar enemyHitPointsBar;
-    private float enemyHeight;
-    private float heightOnScreen;
-    private Vector3 enemyHitPointsDisplayInitialScale;
-
-    private void Start()
+    public class EnemyHitPointsDisplay : HitAndManaPointsDisplay
     {
-        enemy = FindObjectOfType<Enemy>().gameObject;
-        enemyHeight = enemy.GetComponent<CharacterController>().height;
-        enemyTransform = enemy.transform;
-        enemyHitPointsDisplayTransform = gameObject.transform;
-        enemyHitPointsBar = gameObject.GetComponent<UIProgressBar>();
+        private GameObject enemyGameObject;
+        private Camera mainCamera;
+        private Transform mainCameraTransform;
+        private Transform enemyTransform;
+        private Transform thisTransform;
+        private float enemyHeight;
+        private float heightOnScreen;
+        private Vector3 initialLocalScale;
 
-        mainCamera = Camera.main;
-        mainCameraTransform = mainCamera.SelfOrNull()?.transform;
+        public void Initialize(Transform enemyTransform, CharacterController characterController)
+        {
+            enemyGameObject = enemyTransform.gameObject;
+            this.enemyTransform = enemyTransform;
+            enemyHeight = characterController.height;
 
-        enemyHitPointsDisplayInitialScale = enemyHitPointsDisplayTransform.localScale;
+            thisTransform = transform;
 
-        heightOnScreen = 30f;
-    }
+            mainCamera = Camera.main;
+            mainCameraTransform = mainCamera.SelfOrNull()?.transform;
 
-    private void LateUpdate()
-    {
-        if (!enemy.activeSelf) return;
+            initialLocalScale = thisTransform.localScale;
 
-        enemyHitPointsDisplayTransform.position =
-            (enemyTransform.position + (enemyHeight * enemyTransform.lossyScale.y + 0.5f) * Vector3.up);
+            heightOnScreen = 30f;
+        }
 
-        UpdateBarLocalScale();
+        private void LateUpdate()
+        {
+            if (!enemyGameObject.activeSelf)
+                return;
 
-        LookAtCamera();
-    }
+            UpdatePosition();
+            UpdateLocalScale();
+            UpdateRotationToLookAtCamera();
+        }
 
-    private void UpdateBarLocalScale()
-    {
-        var tempPos = mainCamera.ScreenToWorldPoint(mainCamera.WorldToScreenPoint(enemyHitPointsDisplayTransform.position) + Vector3.up * heightOnScreen);
-        enemyHitPointsDisplayTransform.localScale = enemyHitPointsDisplayInitialScale * (tempPos - enemyHitPointsDisplayTransform.position).magnitude;
-    }
+        private void UpdatePosition()
+        {
+            thisTransform.position =
+                enemyTransform.position + (enemyHeight * enemyTransform.lossyScale.y + 0.5f) * Vector3.up;
+        }
 
-    private void LookAtCamera()
-    {
-        enemyHitPointsDisplayTransform.rotation = mainCameraTransform.rotation;
+        private void UpdateLocalScale()
+        {
+            var tempPos = mainCamera.ScreenToWorldPoint(mainCamera.WorldToScreenPoint(thisTransform.position) + Vector3.up * heightOnScreen);
+            thisTransform.localScale = initialLocalScale * (tempPos - thisTransform.position).magnitude;
+        }
+
+        private void UpdateRotationToLookAtCamera()
+        {
+            thisTransform.rotation = mainCameraTransform.rotation;
+        }
     }
 }

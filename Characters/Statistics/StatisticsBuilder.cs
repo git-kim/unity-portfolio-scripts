@@ -1,4 +1,4 @@
-﻿namespace GameData
+﻿namespace Characters.StatisticsScripts
 {
     /// <summary>
     /// Used to create a stat collection using a fluent builder pattern.

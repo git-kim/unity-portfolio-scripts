@@ -1,23 +1,26 @@
 ﻿using UnityEngine;
-using CommandPattern;
 using Characters.Handlers;
+using UserInterface;
 
-public abstract class SelfBuffingAction: CharacterActionCommand
+namespace Characters.CharacterActionCommands
 {
-    protected float CoolDownTime { get; set; }
+    public abstract class SelfBuffingAction : CharacterActionCommand
+    {
+        protected float CoolDownTime { get; set; }
 
-    protected ParticleEffectName ParticleEffectName = ParticleEffectName.None;
-    protected MonoBehaviour ActorMonoBehaviour;
-    protected Animator ActorAnim;
-    protected Transform ActorTransform;
-    protected CharacterActionHandler ActorActionHandler;
-    protected StatChangeHandler ActorStatChangeHandler;
-    protected IStatChangeDisplay ActorIStatChangeDisplay;
+        protected ParticleEffectName ParticleEffectName = ParticleEffectName.None;
+        protected MonoBehaviour ActorMonoBehaviour;
+        protected Animator ActorAnim;
+        protected Transform ActorTransform;
+        protected CharacterActionHandler ActorActionHandler;
+        protected StatChangeHandler ActorStatChangeHandler;
+        protected IStatChangeDisplay ActorIStatChangeDisplay;
 
-    private protected int BuffID;
-    public bool IsBuffOn => ActorStatChangeHandler.HasStatChangingEffect(BuffID);
-    protected bool IsActionUnusable { get; set; }
-    protected float EffectTime { get; set; }
+        private protected int BuffIndex;
+        public bool IsBuffOn => ActorStatChangeHandler.HasStatChangingEffect(BuffIndex);
+        protected bool IsActionUnusable { get; set; }
+        protected float EffectTime { get; set; }
 
-    protected static readonly int ActionMode = Animator.StringToHash("ActionMode");
+        protected static readonly int ActionMode = Animator.StringToHash("ActionMode");
+    }
 }

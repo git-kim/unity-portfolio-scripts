@@ -1,23 +1,25 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 
-public class StatChangePrefabController : MonoBehaviour
+namespace UserInterface
 {
-    private readonly List<TweenAlpha> tweenAlphas = new List<TweenAlpha>();
-
-    private void Awake()
+    public class StatChangePrefabController : MonoBehaviour
     {
-        tweenAlphas.AddRange(gameObject.GetComponentsInChildren<TweenAlpha>());
+        private readonly List<TweenAlpha> tweenAlphas = new List<TweenAlpha>();
 
-        tweenAlphas[0].AddOnFinished(() => gameObject.SetActive(false));
-    }
-
-    private void OnEnable()
-    {
-        foreach (var tweenAlpha in tweenAlphas)
+        private void Awake()
         {
-            tweenAlpha.ResetToBeginning();
-            tweenAlpha.PlayForward();
+            tweenAlphas.AddRange(GetComponentsInChildren<TweenAlpha>());
+            tweenAlphas[0].AddOnFinished(() => gameObject.SetActive(false));
+        }
+
+        private void OnEnable()
+        {
+            foreach (var tweenAlpha in tweenAlphas)
+            {
+                tweenAlpha.ResetToBeginning();
+                tweenAlpha.PlayForward();
+            }
         }
     }
 }

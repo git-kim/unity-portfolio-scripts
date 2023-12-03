@@ -1,8 +1,8 @@
-using GameData;
-using System;
+using Characters.StatisticsScripts;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
+using UserInterface;
 
 namespace Characters.Handlers
 {
@@ -182,11 +182,11 @@ namespace Characters.Handlers
             }
         }
 
-        public void AddStatChangingEffect(int buffIdentifier, in StatChangingEffectData data)
+        public void AddStatChangingEffect(int buffIndex, in StatChangingEffectData data)
         {
-            if (!ActiveStatChangingEffects.ContainsKey(buffIdentifier))
+            if (!ActiveStatChangingEffects.ContainsKey(buffIndex))
             {
-                ActiveStatChangingEffects.Add(buffIdentifier, data);
+                ActiveStatChangingEffects.Add(buffIndex, data);
             }
 
             if (data.type == StatChangingEffectType.Temporal)
@@ -202,9 +202,9 @@ namespace Characters.Handlers
             }
         }
 
-        public void RemoveStatChangingEffect(int buffIdentifier)
+        public void RemoveStatChangingEffect(int buffIndex)
         {
-            if (ActiveStatChangingEffects.TryGetValue(buffIdentifier, out var data)
+            if (ActiveStatChangingEffects.TryGetValue(buffIndex, out var data)
                 && data.type == StatChangingEffectType.Temporal)
             {
                 if (data.value < 0)
@@ -217,12 +217,12 @@ namespace Characters.Handlers
                 }
             }
 
-            ActiveStatChangingEffects.Remove(buffIdentifier);
+            ActiveStatChangingEffects.Remove(buffIndex);
         }
 
-        public bool HasStatChangingEffect(int buffIdentifier)
+        public bool HasStatChangingEffect(int buffIndex)
         {
-            return ActiveStatChangingEffects.ContainsKey(buffIdentifier);
+            return ActiveStatChangingEffects.ContainsKey(buffIndex);
         }
     }
 }

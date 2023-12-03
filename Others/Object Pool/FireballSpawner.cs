@@ -1,22 +1,26 @@
-﻿using UnityEngine;
+﻿using Managers;
+using UnityEngine;
 
-public class FireballSpawner : MonoBehaviour
+namespace ObjectPool
 {
-    private ObjectPoolManager objectPoolManagerInstance;
-    private Fireball spawnedFireball;
-    private Transform thisTransform;
-
-    void Awake()
+    public class FireballSpawner : MonoBehaviour
     {
-        objectPoolManagerInstance = ObjectPoolManager.Instance;
-        thisTransform = gameObject.transform;
-    }
+        private ObjectPoolManager objectPoolManagerInstance;
+        private Fireball spawnedFireball;
+        private Transform thisTransform;
 
-    public void SpawnFireball(GameObject target, int magicDamage, in string actionName)
-    {
-        GameObject spawnedObject = objectPoolManagerInstance.SpawnObjectFromPool("Fireball", thisTransform.position, Quaternion.identity);
-        spawnedFireball = spawnedObject.GetComponent<Fireball>();
-        spawnedFireball.SetTarget(target);
-        spawnedFireball.Fire(magicDamage, in actionName);
+        void Awake()
+        {
+            objectPoolManagerInstance = ObjectPoolManager.Instance;
+            thisTransform = gameObject.transform;
+        }
+
+        public void SpawnFireball(GameObject target, int magicDamage, in string actionName)
+        {
+            GameObject spawnedObject = objectPoolManagerInstance.SpawnObjectFromPool("Fireball", thisTransform.position, Quaternion.identity);
+            spawnedFireball = spawnedObject.GetComponent<Fireball>();
+            spawnedFireball.SetTarget(target);
+            spawnedFireball.Fire(magicDamage, in actionName);
+        }
     }
 }

@@ -1,40 +1,44 @@
 ﻿using UnityEngine;
 
-public class HitAndManaPointsDisplay : MonoBehaviour
+namespace UserInterface
 {
-    [SerializeField] private UIProgressBar hitPointsBar;
-    [SerializeField] private UIProgressBar manaPointsBar;
-    [SerializeField] private UILabel hitPointsDigitsLabel;
-    [SerializeField] private UILabel manaPointsDigitsLabel;
-
-    public void UpdateHitPointsBar(int currentPoints, int maximumPoints)
+    public class HitAndManaPointsDisplay : MonoBehaviour
     {
-        if (!hitPointsBar)
-            return;
+        [SerializeField] private UIProgressBar hitPointsBar;
+        [SerializeField] private UIProgressBar manaPointsBar;
+        [SerializeField] private UILabel hitPointsDigitsLabel;
+        [SerializeField] private UILabel manaPointsDigitsLabel;
 
-        hitPointsBar.Set((float)currentPoints / maximumPoints, false);
-    }
+        public void UpdateHitPointsBar(int currentPoints, int maximumPoints)
+        {
+            if (!hitPointsBar)
+                return;
 
-    public void UpdateHitPointsText(int currentPoints)
-    {
-        if (!hitPointsDigitsLabel)
-            return;
+            hitPointsBar.Set((float)currentPoints / maximumPoints, false);
+        }
 
-        hitPointsDigitsLabel.text = currentPoints.ToString();
-    }
-    public void UpdateManaPointsBar(int currentPoints, int maximumPoints)
-    {
-        if (!manaPointsBar)
-            return;
+        public void UpdateHitPointsText(int currentPoints)
+        {
+            if (!hitPointsDigitsLabel)
+                return;
 
-        manaPointsBar.Set((float)currentPoints / maximumPoints, false);
-    }
+            hitPointsDigitsLabel.text = currentPoints.ToString();
+        }
 
-    public void UpdateManaPointsText(int currentPoints)
-    {
-        if (!manaPointsDigitsLabel)
-            return;
+        public void UpdateManaPointsBar(int currentPoints, int maximumPoints)
+        {
+            if (!manaPointsBar)
+                return;
 
-        manaPointsDigitsLabel.text = currentPoints.ToString();
+            manaPointsBar.Set((float)currentPoints / maximumPoints, false);
+        }
+
+        public void UpdateManaPointsText(int currentPoints)
+        {
+            if (!manaPointsDigitsLabel)
+                return;
+
+            manaPointsDigitsLabel.text = currentPoints.ToString();
+        }
     }
 }

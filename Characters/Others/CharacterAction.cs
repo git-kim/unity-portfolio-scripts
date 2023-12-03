@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using CommandPattern;
+using Characters.CharacterActionCommands;
 
 public class CharacterActions: List<CharacterAction>
 {

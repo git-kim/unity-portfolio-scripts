@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using Managers;
+using UnityEngine;
 
 public class SFX : MonoBehaviour
 {
@@ -13,8 +14,11 @@ public class SFX : MonoBehaviour
         gameManagerInstance = GameManager.Instance;
 
         sFX = Instantiate(prefab, transform.position, Quaternion.identity);
+
         audioSource = sFX.GetComponent<AudioSource>();
-        if (audioSource) audioSourceVolumeFactor = audioSource.volume;
+        if (audioSource)
+            audioSourceVolumeFactor = audioSource.volume;
+
         sFX.transform.SetParent(gameObject.transform);
     }
 
@@ -27,9 +31,9 @@ public class SFX : MonoBehaviour
         audioSource.Play();
     }
 
-    // Update is called once per frame
     private void OnDisable()
     {
-        if (audioSource) audioSource.Stop();
+        if (audioSource)
+            audioSource.Stop();
     }
 }

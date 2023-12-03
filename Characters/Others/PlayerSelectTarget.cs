@@ -1,4 +1,6 @@
-﻿using UnityEngine;
+﻿using Characters;
+using Managers;
+using UnityEngine;
 
 public class PlayerSelectTarget : MonoBehaviour
 {
@@ -10,7 +12,7 @@ public class PlayerSelectTarget : MonoBehaviour
 
     private void Start()
     {
-        player = FindObjectOfType<Player>().GetComponent<Player>();
+        player = FindObjectOfType<Player>();
         mainCamera = Camera.main;
         keyManagerInstance = KeyManager.Instance;
     }

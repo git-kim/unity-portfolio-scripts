@@ -1,175 +1,180 @@
-﻿using System.Collections.Generic;
+﻿using Characters;
+using Managers;
+using System.Collections.Generic;
 using UnityEngine;
 
-public class EnemyStatChangeDisplay : MonoBehaviour, IStatChangeDisplay
+namespace UserInterface
 {
-    private ObjectPoolManager objectPoolManagerInstance;
-
-    private BuffInformationList buffs;
-
-    private readonly List<GameObject> buffEndObjInUse = new List<GameObject>();
-    private readonly List<GameObject> buffStartObjInUse = new List<GameObject>();
-    private readonly List<GameObject> hPDownObjInUse = new List<GameObject>();
-    private readonly List<GameObject> hPDownOverTimeObjInUse = new List<GameObject>();
-    private int listSize;
-    private Transform enemyTransform;
-    private Transform thisTransform;
-    private Camera mainCamera, nGUICamera;
-    private GameObject enemyObject;
-    private Vector3 offsetVector;
-    private Vector3 hPChangeObjectSpawnLocalPosition;
-    private Vector3 hPChangeOverTimeObjectSpawnLocalPosition;
-    private Vector3 buffOnObjectSpawnLocalPosition;
-    private Vector3 buffOffObjectSpawnLocalPosition;
-    private const float Speed = 60f;
-
-    private void Awake()
+    public class EnemyStatChangeDisplay : MonoBehaviour, IStatChangeDisplay
     {
-        objectPoolManagerInstance = ObjectPoolManager.Instance;
-        thisTransform = gameObject.transform;
+        private ObjectPoolManager objectPoolManagerInstance;
 
-        hPChangeObjectSpawnLocalPosition = new Vector3(0f, 35f, 0f);
-        hPChangeOverTimeObjectSpawnLocalPosition = new Vector3(0f, 20f, 0f);
-        buffOnObjectSpawnLocalPosition = new Vector3(0f, 50f, 0f);
-        buffOffObjectSpawnLocalPosition = new Vector3(0f, 50f, 0f);
-    }
+        private BuffInformationList buffs;
 
-    private void Start()
-    {
-        buffs = GameManager.Instance.Buffs;
+        private readonly List<GameObject> buffEndObjInUse = new List<GameObject>();
+        private readonly List<GameObject> buffStartObjInUse = new List<GameObject>();
+        private readonly List<GameObject> hPDownObjInUse = new List<GameObject>();
+        private readonly List<GameObject> hPDownOverTimeObjInUse = new List<GameObject>();
+        private int listSize;
+        private Transform enemyTransform;
+        private Transform thisTransform;
+        private Camera mainCamera, nGUICamera;
+        private GameObject enemyObject;
+        private Vector3 offsetVector;
+        private Vector3 hPChangeObjectSpawnLocalPosition;
+        private Vector3 hPChangeOverTimeObjectSpawnLocalPosition;
+        private Vector3 buffOnObjectSpawnLocalPosition;
+        private Vector3 buffOffObjectSpawnLocalPosition;
+        private const float Speed = 60f;
 
-        var enemy = FindObjectOfType<Enemy>();
-        enemyObject = enemy.gameObject;
-        enemyTransform = enemy.transform;
-        offsetVector = enemyTransform.lossyScale.y * enemy.GetComponent<CharacterController>().height * 0.5f * Vector3.up;
-        //enemyActionCommands = enemy.ActionCommands;
-        mainCamera = Camera.main;
-        nGUICamera = GameObject.Find("UI Root").GetComponentInChildren<Camera>();
-    }
-
-    public void ShowBuffEnd(int buffIdentifier)
-    {
-        var obj = objectPoolManagerInstance.SpawnObjectFromPool("BuffOffEnemy", Vector3.zero, Quaternion.identity, false);
-        obj.transform.SetParent(gameObject.transform, false);
-        obj.transform.localScale = Vector3.one;
-        obj.transform.localPosition = buffOffObjectSpawnLocalPosition;
-
-        var objSprite = obj.GetComponentInChildren<UISprite>(true);
-        objSprite.spriteName = buffs[buffIdentifier].spriteName;
-        objSprite.alpha = 1f;
-
-        var objLabel = obj.GetComponentInChildren<UILabel>(true);
-        objLabel.alpha = 1f;
-        objLabel.text = "- " + buffs[buffIdentifier].buffName;
-
-        buffEndObjInUse.Add(obj);
-
-        obj.SetActive(true);
-    }
-
-    public void ShowBuffStart(int buffIdentifier, float effectTime)
-    {
-        var obj = objectPoolManagerInstance.SpawnObjectFromPool("DebuffOnEnemy", Vector3.zero, Quaternion.identity, false);
-        // 참고: BuffOnEnemy라는 prefab은 만들지 않았다.
-
-        obj.transform.SetParent(gameObject.transform, false);
-        obj.transform.localScale = Vector3.one;
-        obj.transform.localPosition = buffOnObjectSpawnLocalPosition;
-
-        var objSprite = obj.GetComponentInChildren<UISprite>(true);
-        objSprite.spriteName = buffs[buffIdentifier].spriteName;
-        objSprite.alpha = 1f;
-
-        var objLabel = obj.GetComponentInChildren<UILabel>(true);
-        objLabel.alpha = 1f;
-        objLabel.text = "+ " + buffs[buffIdentifier].buffName;
-
-        buffStartObjInUse.Add(obj);
-
-        obj.SetActive(true);
-    }
-
-    public void ShowHitPointsChange(int change, bool isDecrement, in string actionName)
-    {
-        if (!isDecrement) return;
-        // 참고: 회복 prefab은 만들지 않았다.
-
-        var obj = objectPoolManagerInstance.SpawnObjectFromPool("DamageEnemy", Vector3.zero, Quaternion.identity, false);
-        obj.transform.SetParent(gameObject.transform, false);
-        obj.transform.localScale = Vector3.one;
-        obj.transform.localPosition = hPChangeObjectSpawnLocalPosition;
-
-        var objLabels = obj.GetComponentsInChildren<UILabel>(true);
-        objLabels[0].alpha = 1f;
-        objLabels[0].text = actionName ?? "";
-        objLabels[1].alpha = 1f;
-        objLabels[1].text = change.ToString();
-
-        hPDownObjInUse.Add(obj);
-
-        obj.SetActive(true);
-    }
-
-    public void ShowHitPointsChangeOverTime(int change, bool isDecrement = false)
-    {
-        if (!isDecrement) return;
-        // 참고: 회복 prefab은 만들지 않았다.
-
-        var obj = objectPoolManagerInstance.SpawnObjectFromPool("DamageOverTimeEnemy", Vector3.zero, Quaternion.identity, false);
-        obj.transform.SetParent(gameObject.transform, false);
-        obj.transform.localScale = Vector3.one;
-        obj.transform.localPosition = hPChangeOverTimeObjectSpawnLocalPosition;
-
-        var objLabel = obj.GetComponentInChildren<UILabel>(true);
-        objLabel.alpha = 1f;
-        objLabel.text = change.ToString();
-
-        hPDownOverTimeObjInUse.Add(obj);
-
-        obj.SetActive(true);
-    }
-
-    private void Update()
-    {
-        if (!enemyObject.activeSelf) return;
-
-        UpdateList(buffEndObjInUse, false);
-        UpdateList(buffStartObjInUse, true);
-        UpdateList(hPDownObjInUse, true);
-        UpdateList(hPDownOverTimeObjInUse, false);
-
-        thisTransform.OverlayPosition(enemyTransform.position + offsetVector, mainCamera, nGUICamera);
-    }
-
-    public void RemoveAllDisplayingBuffs()
-    {
-        // not implemented yet.
-    }
-
-    private void UpdateList(List<GameObject> list, bool shouldMove)
-    {
-        if (list.Count <= 0)
-            return;
-
-        list.RemoveAll(obj => obj.activeSelf == false);
-
-        if (!shouldMove)
-            return;
-
-        listSize = list.Count;
-        if (listSize > 1)
+        private void Awake()
         {
-            for (var i = 1; i < listSize; ++i)
-            {
-                var differenceY = list[i - 1].transform.localPosition.y - list[i].transform.localPosition.y;
-                if (differenceY > 20f) continue;
-                list[i - 1].transform.localPosition += Vector3.up * (20f - differenceY);
-            }
+            objectPoolManagerInstance = ObjectPoolManager.Instance;
+            thisTransform = gameObject.transform;
+
+            hPChangeObjectSpawnLocalPosition = new Vector3(0f, 35f, 0f);
+            hPChangeOverTimeObjectSpawnLocalPosition = new Vector3(0f, 20f, 0f);
+            buffOnObjectSpawnLocalPosition = new Vector3(0f, 50f, 0f);
+            buffOffObjectSpawnLocalPosition = new Vector3(0f, 50f, 0f);
         }
 
-        foreach (var obj in list)
+        private void Start()
         {
-            obj.transform.localPosition += Vector3.up * (Speed * Time.unscaledDeltaTime);
+            buffs = GameManager.Instance.Buffs;
+
+            var enemy = FindObjectOfType<Enemy>();
+            enemyObject = enemy.gameObject;
+            enemyTransform = enemy.transform;
+            offsetVector = enemyTransform.lossyScale.y * enemy.GetComponent<CharacterController>().height * 0.5f * Vector3.up;
+            //enemyActionCommands = enemy.ActionCommands;
+            mainCamera = Camera.main;
+            nGUICamera = GameObject.Find("UI Root").GetComponentInChildren<Camera>();
+        }
+
+        public void ShowBuffEnd(int buffIndex)
+        {
+            var obj = objectPoolManagerInstance.SpawnObjectFromPool("BuffOffEnemy", Vector3.zero, Quaternion.identity, false);
+            obj.transform.SetParent(gameObject.transform, false);
+            obj.transform.localScale = Vector3.one;
+            obj.transform.localPosition = buffOffObjectSpawnLocalPosition;
+
+            var objSprite = obj.GetComponentInChildren<UISprite>(true);
+            objSprite.spriteName = buffs[buffIndex].spriteName;
+            objSprite.alpha = 1f;
+
+            var objLabel = obj.GetComponentInChildren<UILabel>(true);
+            objLabel.alpha = 1f;
+            objLabel.text = "- " + buffs[buffIndex].buffName;
+
+            buffEndObjInUse.Add(obj);
+
+            obj.SetActive(true);
+        }
+
+        public void ShowBuffStart(int buffIndex, float effectTime)
+        {
+            var obj = objectPoolManagerInstance.SpawnObjectFromPool("DebuffOnEnemy", Vector3.zero, Quaternion.identity, false);
+            // 참고: BuffOnEnemy라는 prefab은 만들지 않았다.
+
+            obj.transform.SetParent(gameObject.transform, false);
+            obj.transform.localScale = Vector3.one;
+            obj.transform.localPosition = buffOnObjectSpawnLocalPosition;
+
+            var objSprite = obj.GetComponentInChildren<UISprite>(true);
+            objSprite.spriteName = buffs[buffIndex].spriteName;
+            objSprite.alpha = 1f;
+
+            var objLabel = obj.GetComponentInChildren<UILabel>(true);
+            objLabel.alpha = 1f;
+            objLabel.text = "+ " + buffs[buffIndex].buffName;
+
+            buffStartObjInUse.Add(obj);
+
+            obj.SetActive(true);
+        }
+
+        public void ShowHitPointsChange(int change, bool isDecrement, in string actionName)
+        {
+            if (!isDecrement) return;
+            // 참고: 회복 prefab은 만들지 않았다.
+
+            var obj = objectPoolManagerInstance.SpawnObjectFromPool("DamageEnemy", Vector3.zero, Quaternion.identity, false);
+            obj.transform.SetParent(gameObject.transform, false);
+            obj.transform.localScale = Vector3.one;
+            obj.transform.localPosition = hPChangeObjectSpawnLocalPosition;
+
+            var objLabels = obj.GetComponentsInChildren<UILabel>(true);
+            objLabels[0].alpha = 1f;
+            objLabels[0].text = actionName ?? "";
+            objLabels[1].alpha = 1f;
+            objLabels[1].text = change.ToString();
+
+            hPDownObjInUse.Add(obj);
+
+            obj.SetActive(true);
+        }
+
+        public void ShowHitPointsChangeOverTime(int change, bool isDecrement = false)
+        {
+            if (!isDecrement) return;
+            // 참고: 회복 prefab은 만들지 않았다.
+
+            var obj = objectPoolManagerInstance.SpawnObjectFromPool("DamageOverTimeEnemy", Vector3.zero, Quaternion.identity, false);
+            obj.transform.SetParent(gameObject.transform, false);
+            obj.transform.localScale = Vector3.one;
+            obj.transform.localPosition = hPChangeOverTimeObjectSpawnLocalPosition;
+
+            var objLabel = obj.GetComponentInChildren<UILabel>(true);
+            objLabel.alpha = 1f;
+            objLabel.text = change.ToString();
+
+            hPDownOverTimeObjInUse.Add(obj);
+
+            obj.SetActive(true);
+        }
+
+        private void Update()
+        {
+            if (!enemyObject.activeSelf) return;
+
+            UpdateList(buffEndObjInUse, false);
+            UpdateList(buffStartObjInUse, true);
+            UpdateList(hPDownObjInUse, true);
+            UpdateList(hPDownOverTimeObjInUse, false);
+
+            thisTransform.OverlayPosition(enemyTransform.position + offsetVector, mainCamera, nGUICamera);
+        }
+
+        public void RemoveAllDisplayingBuffs()
+        {
+            // not implemented yet.
+        }
+
+        private void UpdateList(List<GameObject> list, bool shouldMove)
+        {
+            if (list.Count <= 0)
+                return;
+
+            list.RemoveAll(obj => obj.activeSelf == false);
+
+            if (!shouldMove)
+                return;
+
+            listSize = list.Count;
+            if (listSize > 1)
+            {
+                for (var i = 1; i < listSize; ++i)
+                {
+                    var differenceY = list[i - 1].transform.localPosition.y - list[i].transform.localPosition.y;
+                    if (differenceY > 20f) continue;
+                    list[i - 1].transform.localPosition += Vector3.up * (20f - differenceY);
+                }
+            }
+
+            foreach (var obj in list)
+            {
+                obj.transform.localPosition += Vector3.up * (Speed * Time.unscaledDeltaTime);
+            }
         }
     }
 }

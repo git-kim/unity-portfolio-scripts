@@ -1,75 +1,77 @@
-﻿using System.Collections.Generic;
+﻿using ObjectPool;
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
-public class ObjectPoolManager : Singleton<ObjectPoolManager>
+namespace Managers
 {
-    private ObjectPoolManager() { }
-
-   [System.Serializable] // 클래스, 구조체, 열거형, 대리자에 붙일 수 있는 특성(인스펙터에 표시 가능)
-    public class ObjectPoolInfo
+    public class ObjectPoolManager : Singleton<ObjectPoolManager>
     {
-        public string name;
-        public GameObject prefab;
-        public int size;
-    }
+        private ObjectPoolManager() { }
 
-    public List<ObjectPoolInfo> objectPoolInfoList;
-    private Dictionary<string, Queue<GameObject>> objectPoolDictionary;
-
-    private void Start()
-    {
-        objectPoolDictionary = new Dictionary<string, Queue<GameObject>>();
-
-        foreach (var objPoolInfo in objectPoolInfoList)
+        [Serializable]
+        public class ObjectPoolInfo
         {
-            var objPool = new Queue<GameObject>();
+            public string name;
+            public GameObject prefab;
+            public int size;
+        }
 
-            for (var i = 0; i < objPoolInfo.size; i++)
+        public List<ObjectPoolInfo> objectPoolInfoList;
+        private Dictionary<string, Queue<GameObject>> objectPoolDictionary;
+
+        private void Start()
+        {
+            objectPoolDictionary = new Dictionary<string, Queue<GameObject>>();
+
+            foreach (var objPoolInfo in objectPoolInfoList)
             {
-                var obj = Instantiate(objPoolInfo.prefab);
-                obj.SetActive(false);
-                objPool.Enqueue(obj);
+                var objPool = new Queue<GameObject>();
+
+                for (var i = 0; i < objPoolInfo.size; i++)
+                {
+                    var obj = Instantiate(objPoolInfo.prefab);
+                    obj.SetActive(false);
+                    objPool.Enqueue(obj);
+                }
+
+                objectPoolDictionary.Add(objPoolInfo.name, objPool);
+            }
+        }
+
+        public GameObject SpawnObjectFromPool(string objPoolName, Vector3 pos, Quaternion rot, bool shouldBeEnabledBeforeReturn = true)
+        {
+            if (!objectPoolDictionary.ContainsKey(objPoolName))
+            {
+                Debug.LogError(objPoolName + " (오브젝트 풀) 부재");
+                return null;
             }
 
-            objectPoolDictionary.Add(objPoolInfo.name, objPool);
+            var objQueue = objectPoolDictionary[objPoolName];
+
+            GameObject objToSpawn;
+
+            if (objQueue.Peek().activeSelf)
+            {
+                objToSpawn = Instantiate(objQueue.Peek());
+                objToSpawn.SetActive(false);
+            }
+            else
+            {
+                objToSpawn = objQueue.Dequeue();
+            }
+
+            if (shouldBeEnabledBeforeReturn) objToSpawn.SetActive(true);
+            objToSpawn.transform.SetPositionAndRotation(pos, rot);
+
+            if (objToSpawn.TryGetComponent<IPoolable>(out var pooledObj))
+            {
+                pooledObj.OnObjectSpawn();
+            }
+
+            objQueue.Enqueue(objToSpawn);
+
+            return objToSpawn;
         }
-    }
-
-    public GameObject SpawnObjectFromPool(string objPoolName, Vector3 pos, Quaternion rot, bool shouldBeEnabledBeforeReturn = true)
-    {
-        if (!objectPoolDictionary.ContainsKey(objPoolName))
-        {
-            Debug.LogError(objPoolName + " (오브젝트 풀) 부재");
-            return null;
-        }
-
-        var objQueue = objectPoolDictionary[objPoolName];
-
-        GameObject objToSpawn;
-
-        if (objQueue.Peek().activeSelf)
-        {
-            objToSpawn = Instantiate(objQueue.Peek().gameObject);
-            objToSpawn.SetActive(false);
-        }
-        else
-        {
-            objToSpawn = objQueue.Dequeue(); // 큐 선두에 있는 오브젝트를 꺼낸다.
-        }
-
-        if (shouldBeEnabledBeforeReturn) objToSpawn.SetActive(true);
-        objToSpawn.transform.position = pos;
-        objToSpawn.transform.rotation = rot;
-
-        var pooledObj = objToSpawn.GetComponent<IPoolable>();
-
-        if (pooledObj != null)
-        {
-            pooledObj.OnObjectSpawn();
-        }
-
-        objQueue.Enqueue(objToSpawn); // 꺼냈던 오브젝트를 큐 후미에 넣는다.
-
-        return objToSpawn;
     }
 }

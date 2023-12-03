@@ -1,7 +1,10 @@
 ﻿using UnityEngine;
 
-public abstract class CastingBarDisplay : MonoBehaviour
+namespace UserInterface
 {
-    public abstract void ShowCastingBar(int actionID, float castTime);
-    public abstract void StopShowingCastingBar();
+    public abstract class CastingBarDisplay : MonoBehaviour
+    {
+        public abstract void ShowCastingBar(int actionID, float castTime);
+        public abstract void StopShowingCastingBar();
+    }
 }

@@ -1,12 +1,15 @@
-﻿public interface IStatChangeDisplay
+﻿namespace UserInterface
 {
-    void ShowHitPointsChange(int change, bool isDecrement, in string actionName);
+    public interface IStatChangeDisplay
+    {
+        void ShowHitPointsChange(int change, bool isDecrement, in string actionName);
 
-    void ShowHitPointsChangeOverTime(int change, bool isDecrement = false);
+        void ShowHitPointsChangeOverTime(int change, bool isDecrement = false);
 
-    void ShowBuffStart(int buffIdentifier, float effectTime);
+        void ShowBuffStart(int buffIndex, float effectTime);
 
-    void ShowBuffEnd(int buffIdentifier);
+        void ShowBuffEnd(int buffIndex);
 
-    void RemoveAllDisplayingBuffs();
+        void RemoveAllDisplayingBuffs();
+    }
 }

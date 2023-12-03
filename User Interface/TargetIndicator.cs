@@ -1,14 +1,9 @@
 ﻿using UnityEngine;
 
-public class TargetIndicator : MonoBehaviour
+namespace UserInterface
 {
-    public void Enable()
+    public class TargetIndicator : MonoBehaviour
     {
-        gameObject.SetActive(true);
-    }
 
-    public void Disable()
-    {
-        gameObject.SetActive(false);
     }
 }

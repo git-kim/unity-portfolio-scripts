@@ -1,6 +1,7 @@
-using System;
+using Characters.CharacterActionCommands;
 using UnityEngine;
 using UnityEngine.Events;
+using UserInterface;
 
 namespace Characters.Handlers
 {
@@ -81,7 +82,10 @@ namespace Characters.Handlers
 
             foreach (var actionButton in actionButtons)
             {
-                actionButton.SelfOrNull()?.Initialize(() => SetRecentActionInput(actionButton.actionID), this);
+                actionButton.SelfOrNull()?.Initialize(
+                    () => SetRecentActionInput(actionButton.actionID),
+                    CharacterActions[actionButton.actionID].manaPointsCost,
+                    this);
             }
 
             onVisibleGlobalCoolTimeUpdated = actionButtons.UpdateVisibleCoolTime;

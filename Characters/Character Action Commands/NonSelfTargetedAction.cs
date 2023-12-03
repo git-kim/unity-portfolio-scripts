@@ -1,27 +1,30 @@
 ﻿using UnityEngine;
-using GameData;
-using CommandPattern;
 using Characters.Handlers;
+using Managers;
+using Characters.StatisticsScripts;
 
-public abstract class NonSelfTargetedAction : CharacterActionCommand
+namespace Characters.CharacterActionCommands
 {
-    protected readonly GameManager GameManagerInstance = GameManager.Instance;
+    public abstract class NonSelfTargetedAction : CharacterActionCommand
+    {
+        protected readonly GameManager GameManagerInstance = GameManager.Instance;
 
-    protected string ActionName;
+        protected string ActionName;
 
-    protected static readonly int ActionMode = Animator.StringToHash("ActionMode");
+        protected static readonly int ActionMode = Animator.StringToHash("ActionMode");
 
-    protected MonoBehaviour ActorMonoBehaviour;
-    protected CharacterActionHandler ActorActionHandler;
-    protected Animator ActorAnimator;
-    protected Statistics ActorStats;
-    protected Transform ActorTransform;
+        protected MonoBehaviour ActorMonoBehaviour;
+        protected CharacterActionHandler ActorActionHandler;
+        protected Animator ActorAnimator;
+        protected Statistics ActorStats;
+        protected Transform ActorTransform;
 
-    protected GameObject Target;
+        protected GameObject Target;
 
-    protected float CastTime { get; set; }
+        protected float CastTime { get; set; }
 
-    protected float InvisibleGlobalCoolDownTime { get; set; }
+        protected float InvisibleGlobalCoolDownTime { get; set; }
 
-    protected float CoolDownTime { get; set; }
+        protected float CoolDownTime { get; set; }
+    }
 }

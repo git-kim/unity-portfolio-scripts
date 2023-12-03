@@ -1,7 +1,8 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 using Cinemachine;
-using System.Runtime.InteropServices; // DllImport
+using System.Runtime.InteropServices;
+using Managers; // DllImport
 
 public class PlayerCameraController : MonoBehaviour
 {

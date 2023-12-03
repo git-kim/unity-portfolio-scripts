@@ -37,7 +37,7 @@ public class ActionButtons : Subject, IEnumerable<ActionButton>
         Notify2();
     }
 
-    public UISprite GetActionIcon(int actionID)
+    public UISprite GetActionIconSprite(int actionID)
     {
         return buttons[actionID].iconSprite;
     }

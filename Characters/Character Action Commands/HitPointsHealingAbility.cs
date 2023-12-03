@@ -1,114 +1,119 @@
 ﻿using UnityEngine;
 using System.Collections;
-using GameData;
 using Characters.Handlers;
+using UserInterface;
+using Managers;
+using Characters.StatisticsScripts;
 
-public class HitPointsHealingAbility : SelfBuffingAction
+namespace Characters.CharacterActionCommands
 {
-    private readonly GameManager gameManagerInstance = GameManager.Instance;
-    private int manaPointsCost;
-    private readonly Statistics actorStats;
-
-    private string actionName;
-
-    private float InvisibleGlobalCoolDownTime { get; set; }
-
-    public HitPointsHealingAbility(GameObject actor, int buffIdentifier, IStatChangeDisplay actorIStatChangeDisplay)
+    public class HitPointsHealingAbility : SelfBuffingAction
     {
-        BuffID = buffIdentifier;
-        EffectTime = gameManagerInstance.Buffs[buffIdentifier].effectTime;
+        private readonly GameManager gameManagerInstance = GameManager.Instance;
+        private int manaPointsCost;
+        private readonly Statistics actorStats;
 
-        ActorTransform = actor.transform;
-        ActorMonoBehaviour = actor.GetComponent<MonoBehaviour>();
-        ActorAnim = actor.GetComponent<Animator>();
-        ActorActionHandler = actor.GetComponent<CharacterActionHandler>();
-        ActorStatChangeHandler = actor.GetComponent<StatChangeHandler>();
-        actorStats = ActorActionHandler.Stats;
-        this.ActorIStatChangeDisplay = actorIStatChangeDisplay;
+        private string actionName;
 
-        ParticleEffectName = ParticleEffectName.HealHP;
-    }
+        private float InvisibleGlobalCoolDownTime { get; set; }
 
-    private IEnumerator TakeAction(int actionID, ParticleEffectName particleEffectName,
-        Transform targetTransform, Vector3 localPosition,
-        Vector3 toDirection, Vector3 localScale, bool shouldEffectFollowTarget = true)
-    {
-        ActorAnim.SetInteger(ActionMode, actionID);
+        public HitPointsHealingAbility(GameObject actor, int buffIndex, IStatChangeDisplay actorIStatChangeDisplay)
+        {
+            BuffIndex = buffIndex;
+            EffectTime = gameManagerInstance.Buffs[buffIndex].effectTime;
 
-        ActorActionHandler.ActionBeingTaken = actionID;
+            ActorTransform = actor.transform;
+            ActorMonoBehaviour = actor.GetComponent<MonoBehaviour>();
+            ActorAnim = actor.GetComponent<Animator>();
+            ActorActionHandler = actor.GetComponent<CharacterActionHandler>();
+            ActorStatChangeHandler = actor.GetComponent<StatChangeHandler>();
+            actorStats = ActorActionHandler.Stats;
+            ActorIStatChangeDisplay = actorIStatChangeDisplay;
 
-        ActorActionHandler.VisibleGlobalCoolDownTime = CoolDownTime;
-        ActorActionHandler.InvisibleGlobalCoolDownTime = InvisibleGlobalCoolDownTime;
+            ParticleEffectName = ParticleEffectName.HealHP;
+        }
 
-        IsActionUnusable = true;
-        ActorIStatChangeDisplay.ShowBuffStart(BuffID, EffectTime);
+        private IEnumerator TakeAction(int actionID, ParticleEffectName particleEffectName,
+            Transform targetTransform, Vector3 localPosition,
+            Vector3 toDirection, Vector3 localScale, bool shouldEffectFollowTarget = true)
+        {
+            ActorAnim.SetInteger(ActionMode, actionID);
 
-        ActorStatChangeHandler.DecreaseStat(Stat.ManaPoints, manaPointsCost);
+            ActorActionHandler.ActionBeingTaken = actionID;
 
-        var hitPointsIncrement = Mathf.RoundToInt(actorStats[Stat.MaximumHitPoints] * 0.04f);
-        ActorStatChangeHandler.IncreaseStat(Stat.HitPoints, hitPointsIncrement);
-        ActorIStatChangeDisplay.ShowHitPointsChange(hitPointsIncrement, false, in actionName);
+            ActorActionHandler.VisibleGlobalCoolDownTime = CoolDownTime;
+            ActorActionHandler.InvisibleGlobalCoolDownTime = InvisibleGlobalCoolDownTime;
 
-        ActorStatChangeHandler.AddStatChangingEffect(BuffID,
-            new StatChangeHandler.StatChangingEffectData
+            IsActionUnusable = true;
+            ActorIStatChangeDisplay.ShowBuffStart(BuffIndex, EffectTime);
+
+            ActorStatChangeHandler.DecreaseStat(Stat.ManaPoints, manaPointsCost);
+
+            var hitPointsIncrement = Mathf.RoundToInt(actorStats[Stat.MaximumHitPoints] * 0.04f);
+            ActorStatChangeHandler.IncreaseStat(Stat.HitPoints, hitPointsIncrement);
+            ActorIStatChangeDisplay.ShowHitPointsChange(hitPointsIncrement, false, in actionName);
+
+            ActorStatChangeHandler.AddStatChangingEffect(BuffIndex,
+                new StatChangeHandler.StatChangingEffectData
+                {
+                    type = StatChangeHandler.StatChangingEffectType.AppliedPerTick,
+                    stat = Stat.HitPoints,
+                    value = actorStats[Stat.HitPointsRestorability]
+                });
+
+            if (particleEffectName != ParticleEffectName.None)
+                NonPooledParticleEffectManager.Instance.PlayParticleEffect(particleEffectName, targetTransform, localPosition, toDirection, localScale, 1f, shouldEffectFollowTarget);
+
+            yield return new WaitForSeconds(InvisibleGlobalCoolDownTime);
+
+            if (ActorAnim.GetInteger(ActionMode) == actionID)
+                ActorAnim.SetInteger(ActionMode, 0);
+
+            ActorActionHandler.ActionBeingTaken = 0;
+            IsActionUnusable = false;
+
+            yield return new WaitForSeconds(EffectTime - InvisibleGlobalCoolDownTime);
+
+            ActorStatChangeHandler.RemoveStatChangingEffect(BuffIndex);
+            ActorIStatChangeDisplay.ShowBuffEnd(BuffIndex);
+        }
+
+        public override void Execute(int actorID, GameObject target, CharacterAction actionInfo)
+        {
+            if (IsActionUnusable)
+                return;
+
+            // Check Mana Points
+            if (manaPointsCost > actorStats[Stat.ManaPoints])
             {
-                type = StatChangeHandler.StatChangingEffectType.AppliedPerTick,
-                stat = Stat.HitPoints,
-                value = actorStats[Stat.HitPointsRestorability]
-            });
+                gameManagerInstance.ShowErrorMessage(0);
+                return;
+            }
 
-        if (particleEffectName != ParticleEffectName.None)
-            NonPooledParticleEffectManager.Instance.PlayParticleEffect(particleEffectName, targetTransform, localPosition, toDirection, localScale, 1f, shouldEffectFollowTarget);
+            CoolDownTime = actionInfo.coolDownTime;
+            InvisibleGlobalCoolDownTime = actionInfo.invisibleGlobalCoolDownTime;
+            manaPointsCost = actionInfo.manaPointsCost;
+            actionName = actionInfo.name;
 
-        yield return new WaitForSeconds(InvisibleGlobalCoolDownTime);
+            if (IsBuffOn && CurrentActionCoroutine != null)
+                ActorMonoBehaviour.StopCoroutine(CurrentActionCoroutine);
 
-        if (ActorAnim.GetInteger(ActionMode) == actionID)
-            ActorAnim.SetInteger(ActionMode, 0);
-
-        ActorActionHandler.ActionBeingTaken = 0;
-        IsActionUnusable = false;
-
-        yield return new WaitForSeconds(EffectTime - InvisibleGlobalCoolDownTime);
-
-        ActorStatChangeHandler.RemoveStatChangingEffect(BuffID);
-        ActorIStatChangeDisplay.ShowBuffEnd(BuffID);
-    }
-
-    public override void Execute(int actorID, GameObject target, CharacterAction actionInfo)
-    {
-        if (IsActionUnusable)
-            return;
-
-        // Check Mana Points
-        if (manaPointsCost > actorStats[Stat.ManaPoints])
-        {
-            gameManagerInstance.ShowErrorMessage(0);
-            return;
+            CurrentActionCoroutine = ActorMonoBehaviour.StartCoroutine(
+                TakeAction(actionInfo.id, ParticleEffectName, ActorTransform,
+                Vector3.up * 0.1f, Vector3.zero, Vector3.one));
         }
 
-        CoolDownTime = actionInfo.coolDownTime;
-        InvisibleGlobalCoolDownTime = actionInfo.invisibleGlobalCoolDownTime;
-        manaPointsCost = actionInfo.manaPointsCost;
-        actionName = actionInfo.name;
-
-        if (IsBuffOn && CurrentActionCoroutine != null)
-            ActorMonoBehaviour.StopCoroutine(CurrentActionCoroutine);
-
-        CurrentActionCoroutine = ActorMonoBehaviour.StartCoroutine(
-            TakeAction(actionInfo.id, ParticleEffectName, ActorTransform,
-            Vector3.up * 0.1f, Vector3.zero, Vector3.one));
-    }
-
-    public override void Stop()
-    {
-        if (!IsBuffOn) return;
-
-        if (CurrentActionCoroutine != null)
+        public override void Stop()
         {
-            ActorStatChangeHandler.RemoveStatChangingEffect(BuffID);
-            ActorMonoBehaviour.StopCoroutine(CurrentActionCoroutine);
-            CurrentActionCoroutine = null;
+            if (!IsBuffOn) return;
+
+            if (CurrentActionCoroutine != null)
+            {
+                ActorStatChangeHandler.RemoveStatChangingEffect(BuffIndex);
+                ActorMonoBehaviour.StopCoroutine(CurrentActionCoroutine);
+                CurrentActionCoroutine = null;
+            }
+            ActorActionHandler.IsCasting = false;
         }
-        ActorActionHandler.IsCasting = false;
     }
 }
