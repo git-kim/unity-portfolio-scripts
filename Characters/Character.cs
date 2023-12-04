@@ -6,58 +6,57 @@ namespace Characters
 {
     public abstract class Character : MonoBehaviour
     {
-        [SerializeField] protected StatChangeHandler statChangeHandler;
-        public bool IsDead => statChangeHandler.HasZeroHitPoints;
+        public int Identifier { get; set; }
+
         public Statistics Stats { get; private protected set; }
 
-        protected CharacterController Controller;
-        protected Transform ControllerTransform;
+        [SerializeField] protected StatChangeHandler statChangeHandler;
+        public bool IsDead => statChangeHandler.HasZeroHitPoints;
+
+        [SerializeField] protected Transform Transform;
+        [SerializeField] protected CharacterController CharacterController;
+        [SerializeField] private protected Animator Animator;
 
         protected Vector3 Velocity;
+        protected Quaternion GoalRotation;
         protected bool IsAbleToMove;
         protected bool IsMoving;
-        protected Quaternion GoalRotation;
-
-        private protected Animator Animator;
-        private protected float NegativeGravity;
-        private protected Vector3 DragFactor;
-        private protected bool IsNotInTheAir;
-        private protected Vector3 GroundCheckerPos;
-        private protected float GroundCheckStartY;
-
         private ControllerColliderHit hit;
         private Vector3 tempVelocity;
         private Vector3 localOffset;
         private Vector3 lastPosition;
 
-        private int identifier;
-        public int Identifier
-        {
-            get => identifier;
-            set => identifier = value;
-        }
+        private protected float NegativeGravity;
+        private protected Vector3 DragFactor;
+        private protected Vector3 GroundCheckerPos;
+        private protected float GroundCheckStartY;
+        private protected bool IsOnGround;
 
         protected virtual void Awake()
         {
             hit = null;
-            localOffset = new Vector3(0f, Controller.center.y - Controller.height * 0.5f + Controller.radius, 0f);
-            GoalRotation = gameObject.transform.rotation;
+
+            localOffset.y =
+                CharacterController.center.y - CharacterController.height * 0.5f
+                + CharacterController.radius;
+
+            GoalRotation = Transform.rotation;
         }
 
-        protected void Move()
+        protected void MoveUsingVelocity()
         {
             if (hit != null)
             {
                 // Handling edge collision
-                if (!Physics.Linecast(ControllerTransform.position + localOffset,
-                    ControllerTransform.position + Vector3.down * (Controller.stepOffset + 0.1f),
+                if (!Physics.Linecast(Transform.position + localOffset,
+                    Transform.position + Vector3.down * (CharacterController.stepOffset + 0.1f),
                     1 << 9,
                     QueryTriggerInteraction.Ignore))
                 {
                     tempVelocity = gameObject.transform.position - hit.point; // Note: This line uses hit.point not hit.transform.position.
                     tempVelocity.y = 0f;
-                    Controller.Move(tempVelocity.normalized * (Controller.radius - tempVelocity.magnitude + 0.15f));
-                    Controller.Move(Vector3.down * Controller.radius);
+                    CharacterController.Move(tempVelocity.normalized * (CharacterController.radius - tempVelocity.magnitude + 0.15f));
+                    CharacterController.Move(Vector3.down * CharacterController.radius);
                 }
 
                 hit = null;
@@ -69,35 +68,37 @@ namespace Characters
                 Velocity.z = 0f;
             }
 
-            lastPosition = ControllerTransform.position;
+            lastPosition = Transform.position;
 
             if (Velocity.magnitude > 0f)
-                Controller.Move(Velocity * (Stats[Stat.LocomotionSpeed] * Time.deltaTime));
+                CharacterController.Move(Velocity * (Stats[Stat.LocomotionSpeed] * Time.deltaTime));
 
-            IsMoving = !(Vector3.SqrMagnitude(lastPosition - ControllerTransform.position) < 0.00005f);
+            IsMoving = !(Vector3.SqrMagnitude(lastPosition - Transform.position) < 0.00005f);
         }
 
         protected void Rotate()
         {
-            if (!IsAbleToMove) return;
+            if (!IsAbleToMove)
+                return;
 
             tempVelocity = Velocity;
             tempVelocity.y = 0f;
+
             if (tempVelocity.magnitude > 0.0001f)
             {
                 GoalRotation = Quaternion.LookRotation(tempVelocity, Vector3.up);
             }
 
-            if (GoalRotation != gameObject.transform.rotation)
+            if (GoalRotation != Transform.rotation)
             {
-                gameObject.transform.rotation = Quaternion.RotateTowards(gameObject.transform.rotation, GoalRotation, 10f);
+                Transform.rotation = Quaternion.RotateTowards(Transform.rotation, GoalRotation, 10f);
             }
         }
 
         void OnControllerColliderHit(ControllerColliderHit hit)
         {
             // Note: Don't call Move() here. Move() may call this method.
-            if (Controller.isGrounded)
+            if (CharacterController.isGrounded)
                 this.hit = hit;
         }
 

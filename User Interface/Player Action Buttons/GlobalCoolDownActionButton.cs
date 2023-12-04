@@ -2,6 +2,7 @@
 using UnityEngine;
 using Managers;
 using Characters.StatisticsScripts;
+using Enums;
 
 public class GlobalCoolDownActionButton : ActionButton
 {

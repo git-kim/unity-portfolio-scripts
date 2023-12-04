@@ -1,37 +1,35 @@
-﻿using UnityEngine; // Vector3
-using System.Collections.Generic;
-using System.Linq; // First
+﻿using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
 
 public static class Utilities
 {
     private const float ReciprocalOfPi = 1f / Mathf.PI;
 
     /// <summary>
-    /// 세 점이 이루는 quadratic Bézier curve에 맞는 점을 구한다.(선형 보간 대신 수식을 사용한다.)
+    /// Returns the coordinates of a point on a quadratic Bézier curve.
     /// </summary>
-    /// <param name="pos0">시작점</param>
-    /// <param name="pos1">보간 기준점</param>
-    /// <param name="pos2">도착점</param>
-    /// <param name="t">범위: 0(포함) ~ 1(포함)</param>
-    /// <returns>t에 대응하는 값</returns>
+    /// <param name="pos0">Coordinates of the first control point</param>
+    /// <param name="pos1">Coordinates of the second control point</param>
+    /// <param name="pos2">Coordinates of the last control point</param>
+    /// <param name="t">A value between 0 (inclusive) and 1 (inclusive)</param>
+    /// <returns>Coordinates corresponding to t</returns>
     public static Vector3 GetQuadraticBezierPoint(ref Vector3 pos0, ref Vector3 pos1, ref Vector3 pos2, float t)
     {
         return Mathf.Pow((1f - t), 2f) * pos0 + 2f * (1f - t) * t * pos1 + Mathf.Pow(t, 2f) * pos2;
     }
 
     /// <summary>
-    /// f(x) = (π/2) sin (πx) [x 범위: 0 ~ 1]를 확률 분포 함수(PDF)로 하되 x 범위를 지정 범위만큼으로 하여 임의 값을 반환시킨다.
-    /// 이 PDF에 해당하는 CDF(cumulative distribution function)는 g(x) = 0.5 * (1 - cos(πx)) [x 범위: 0 ~ 1]이다.
-    /// 이 PDF에 해당하는 quantile function(CDF의 역함수)은 g^-1(p) = 1/π * arccos(1 - 2p) [p 범위: 0 ~ 1]이다.
+    /// Returns a random float using the quantile function of a sine distribution.
+    /// PDF (Probability Density Function): f(x) = (π/2) sin (πx) where 0 ≤ x ≤ 1.
+    /// CDF (Cumulative Distribution Function): g(x) = 0.5 * (1 - cos(πx)) where 0 ≤ x ≤ 1.
+    /// Quantile function: g^-1(p) = 1/π * arccos(1 - 2p) where 0 ≤ p ≤ 1.
     /// </summary>
-    /// <param name="minValue">범위 시작점 값(포함)</param>
-    /// <param name="maxValue">범위 끝점 값(포함)</param>
-    /// <returns>결정된 값</returns>
+    /// <param name="minValue">Interval start value (inclusive)</param>
+    /// <param name="maxValue">Interval end value (inclusive)</param>
+    /// <returns>A random float between minValue and maxValue</returns>
     public static float GetRandomFloatFromSineDistribution(float minValue, float maxValue)
     {
-        if (minValue > maxValue)
-            (minValue, maxValue) = (maxValue, minValue);
-
         return minValue + (maxValue - minValue) * ReciprocalOfPi * Mathf.Acos(1 - 2 * Random.value);
     }
 
@@ -61,5 +59,19 @@ public static class Utilities
     public static void SetActive(this Component component, bool value)
     {
         component.gameObject.SelfOrNull()?.SetActive(value);
+    }
+
+    public static bool CheckCylinder(Vector3 start, Vector3 end, float radius,
+        int layerMask, QueryTriggerInteraction queryTriggerInteraction)
+    {
+        Debug.DrawLine(start, end, Color.red);
+
+        if (!Physics.CheckCapsule(start, end, radius, layerMask, queryTriggerInteraction))
+            return false;
+
+        var startToEnd = end - start;
+        return Physics.CheckBox(start + 0.5f * startToEnd,
+            new Vector3(radius, radius, startToEnd.magnitude * 0.5f),
+            Quaternion.LookRotation(startToEnd), layerMask, queryTriggerInteraction);
     }
 }

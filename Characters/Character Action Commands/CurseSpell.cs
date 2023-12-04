@@ -1,5 +1,6 @@
 ﻿using Characters.Handlers;
 using Characters.StatisticsScripts;
+using Enums;
 using Managers;
 using System.Collections;
 using UnityEngine;
@@ -44,7 +45,7 @@ namespace Characters.CharacterActionCommands
 
         private IEnumerator TakeAction(int actionID, int actorID, ParticleEffectName particleEffectName, Transform targetTransform, Vector3 localPosition, Vector3 toDirection, Vector3 localScale, bool shouldEffectFollowTarget = true)
         {
-            ActorAnimator.SetInteger(ActionMode, actionID); // ActionMode에 actionID 값을 저장한다(애니메이션 시작).
+            ActorAnimator.SetInteger(ActionMode, actionID);
             ActorActionHandler.ActionBeingTaken = actionID;
 
             ActorActionHandler.VisibleGlobalCoolDownTime = CoolDownTime;

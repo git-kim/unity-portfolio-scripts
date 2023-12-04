@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using Characters.Handlers;
 using UserInterface;
+using Enums;
 
 namespace Characters.CharacterActionCommands
 {

@@ -32,60 +32,46 @@ namespace Characters
         private const float SquareOfStoppingDistance = 16f;
         private const float SquareOfPlayerDetectionRange = 100f;
 
-        private GameManager gameManagerInstance;
-        private Transform currentTargetTransform;
-        private Transform thisTransform;
+        private const float normalAttackPeriod = 3f;
+        private float lastAttackTime;
 
+        private CastingBarDisplay castingBarDisplay; // not added yet.
         [SerializeField] private EnemyHitPointsDisplay hitPointsDisplay;
-        public TargetIndicator TargetIndicator { get; set; }
+        [SerializeField] private EnemyStatChangeDisplay enemyStatChangeDisplay;
+        public IStatChangeDisplay StatChangeDisplay => enemyStatChangeDisplay;
 
-        private CastingBarDisplay castingBarDisplay;
-
-        private StatChangeHandler currentTargetStatChangeHandler;
-        public IStatChangeDisplay StatChangeDisplay { get; private set; }
-
-        private bool hasEnmityListBeenUpdated = false;
-
-        private readonly Dictionary<int, uint> enmitiesAgainstPlayers = new Dictionary<int, uint>(); // 키: 플레이어 ID; 값: 적개감 수치
-
-        private NavMeshAgent navMeshAgent;
+        [SerializeField] private EnemyActionHandler actionHandler;
+        [SerializeField] private NavMeshAgent navMeshAgent;
 
         private Vector3 originalPosition;
         private Quaternion originalRotation;
 
-        private float timeToAttack = 3f;
+        private Transform currentTargetTransform;
+        private StatChangeHandler currentTargetStatChangeHandler;
 
-        private float timePassedSinceReset = 0f;
-
-        [SerializeField] private EnemyActionHandler actionHandler;
+        private readonly Dictionary<int, uint> enmitiesAgainstPlayers =
+            new Dictionary<int, uint>(); // Key: Player Identifier
+        private bool hasEnmityListBeenUpdated = false;
 
         protected override void Awake()
         {
-            gameManagerInstance = GameManager.Instance;
+            base.Awake();
 
             Identifier = 100;
-
-            StatChangeDisplay = FindObjectOfType<EnemyStatChangeDisplay>();
 
             SetStats();
             InitializeStatChangeHandler();
 
-            TargetIndicator = gameObject.GetComponentInChildren<TargetIndicator>(true);
-            TargetIndicator.SetActive(false);
-
             castingBarDisplay = null;
 
             currentTargetTransform = null;
-            thisTransform = transform;
-            originalPosition = thisTransform.position;
-            originalRotation = thisTransform.rotation;
 
-            Animator = GetComponent<Animator>();
-            navMeshAgent = GetComponent<NavMeshAgent>();
+            originalPosition = Transform.position;
+            originalRotation = Transform.rotation;
 
             InitializeCharacterActionHandler();
 
-            hitPointsDisplay.Initialize(thisTransform, GetComponent<CharacterController>());
+            hitPointsDisplay.Initialize(Transform, CharacterController);
         }
 
         private void SetStats()
@@ -111,8 +97,9 @@ namespace Characters
                 statChangeDisplay = StatChangeDisplay,
                 onHitPointsBecomeZero = () =>
                 {
-                    gameManagerInstance.EnemiesAlive.Remove(Identifier);
-                    gameManagerInstance.onGameTick.RemoveListener(UpdateStat);
+                    GameManager.Instance.EnemiesAlive.Remove(Identifier);
+                    GameManager.Instance.onGameTick2.RemoveListener(UpdateCurrentTarget);
+                    GameManager.Instance.onGameTick.RemoveListener(UpdateStat);
                     // StartCoroutine(EndGame());
                     StatChangeDisplay.RemoveAllDisplayingBuffs();
                     state = EnemyState.Dying;
@@ -157,9 +144,9 @@ namespace Characters
 
         private void Start()
         {
-            Identifier = gameManagerInstance.AddEnemyAlive(Identifier, thisTransform);
-            gameManagerInstance.onGameTick.AddListener(UpdateStat);
-            gameManagerInstance.onGameTick2.AddListener(UpdateCurrentTarget);
+            Identifier = GameManager.Instance.AddEnemyAlive(Identifier, Transform);
+            GameManager.Instance.onGameTick.AddListener(UpdateStat);
+            GameManager.Instance.onGameTick2.AddListener(UpdateCurrentTarget);
 
             state = EnemyState.Idling;
         }
@@ -178,10 +165,10 @@ namespace Characters
                     AttackPlayer();
                     break;
                 case EnemyState.Casting:
-
+                    // Not implemented.
                     break;
                 case EnemyState.Returning:
-                    ReturnToOriginalPosition();
+                    ResetAndReturn();
                     break;
                 case EnemyState.Dying:
                     Die();
@@ -196,26 +183,26 @@ namespace Characters
 
         void LookAtCurrentTarget()
         {
-            Vector3 direction = currentTargetTransform.position - thisTransform.position;
+            Vector3 direction = currentTargetTransform.position - Transform.position;
             direction.y = 0f;
-            thisTransform.forward = direction;
+            Transform.forward = direction;
         }
 
         private void Die()
         {
             Animator.SetTrigger(Dead);
-            gameManagerInstance.EnemiesAlive.Remove(Identifier);
+            GameManager.Instance.EnemiesAlive.Remove(Identifier);
             navMeshAgent.enabled = false;
             StopAllCoroutines();
             state = EnemyState.Dead;
         }
 
-        private void ReturnToOriginalPosition()
+        private void ResetAndReturn()
         {
             if (navMeshAgent.remainingDistance < 0.05f)
             {
-                thisTransform.position = originalPosition;
-                thisTransform.rotation = originalRotation;
+                Transform.position = originalPosition;
+                Transform.rotation = originalRotation;
                 navMeshAgent.velocity = Vector3.zero;
 
                 statChangeHandler.ActiveStatChangingEffects.Clear();
@@ -229,7 +216,7 @@ namespace Characters
 
         private void AttackPlayer()
         {
-            if (gameManagerInstance.PlayersAlive.Count == 0)
+            if (GameManager.Instance.PlayersAlive.Count == 0)
             {
                 navMeshAgent.SetDestination(originalPosition);
                 state = EnemyState.Returning;
@@ -238,7 +225,7 @@ namespace Characters
 
             if (currentTargetStatChangeHandler == null || currentTargetStatChangeHandler.HasZeroHitPoints) return;
 
-            actionHandler.SqrDistanceFromCurrentTarget = GetSqrDistance(thisTransform.position, currentTargetTransform.position);
+            actionHandler.SqrDistanceFromCurrentTarget = GetSqrDistance(Transform.position, currentTargetTransform.position);
 
             if (actionHandler.SqrDistanceFromCurrentTarget <= MaxSquareOfMeleeAttackRange)
             {
@@ -247,12 +234,11 @@ namespace Characters
                 if (actionHandler.SqrDistanceFromCurrentTarget > SquareOfStoppingDistance)
                     navMeshAgent.SetDestination(currentTargetTransform.position);
                 else
-                    navMeshAgent.SetDestination(thisTransform.position);
+                    navMeshAgent.SetDestination(Transform.position);
 
-                timePassedSinceReset += Time.deltaTime;
-                if (timePassedSinceReset >= timeToAttack)
+                if (Time.time - lastAttackTime > normalAttackPeriod)
                 {
-                    timePassedSinceReset = 0f;
+                    lastAttackTime = Time.time;
                     Animator.SetInteger(MovementMode, 0);
                     Animator.SetTrigger(Attack);
 
@@ -271,7 +257,7 @@ namespace Characters
 
         private void ChasePlayer()
         {
-            if (gameManagerInstance.PlayersAlive.Count == 0)
+            if (GameManager.Instance.PlayersAlive.Count == 0)
             {
                 navMeshAgent.SetDestination(originalPosition);
                 state = EnemyState.Returning;
@@ -280,7 +266,7 @@ namespace Characters
 
             if (currentTargetStatChangeHandler == null || currentTargetStatChangeHandler.HasZeroHitPoints) return;
 
-            actionHandler.SqrDistanceFromCurrentTarget = GetSqrDistance(thisTransform.position, currentTargetTransform.position);
+            actionHandler.SqrDistanceFromCurrentTarget = GetSqrDistance(Transform.position, currentTargetTransform.position);
 
             if (actionHandler.SqrDistanceFromCurrentTarget > MaxSquareOfChaseDistance)
             {
@@ -293,9 +279,8 @@ namespace Characters
             }
             else
             {
-                navMeshAgent.SetDestination(thisTransform.position);
+                navMeshAgent.SetDestination(Transform.position);
                 state = EnemyState.Attacking;
-                timeToAttack = 2f;
             }
         }
 
@@ -303,7 +288,7 @@ namespace Characters
         {
             if (enmitiesAgainstPlayers.Count > 0 && actionHandler.CurrentTarget != null)
             {
-                actionHandler.SqrDistanceFromCurrentTarget = GetSqrDistance(thisTransform.position, currentTargetTransform.position);
+                actionHandler.SqrDistanceFromCurrentTarget = GetSqrDistance(Transform.position, currentTargetTransform.position);
 
                 if (actionHandler.SqrDistanceFromCurrentTarget <= MaxSquareOfChaseDistance)
                 {
@@ -314,21 +299,20 @@ namespace Characters
                     else
                     {
                         state = EnemyState.Attacking;
-                        timeToAttack = 2f;
                     }
                 }
 
-                if (!gameManagerInstance.IsInBattle)
-                    gameManagerInstance.IsInBattle = true;
+                if (!GameManager.Instance.IsInBattle)
+                    GameManager.Instance.IsInBattle = true;
             }
-            else if (gameManagerInstance.PlayersAlive.Count > 0)
+            else if (GameManager.Instance.PlayersAlive.Count > 0)
             {
                 var foundKey = -1;
                 var sqrDistanceFromPlayer = SquareOfPlayerDetectionRange;
 
-                foreach (var key in gameManagerInstance.PlayersAlive.Keys)
+                foreach (var key in GameManager.Instance.PlayersAlive.Keys)
                 {
-                    var thisSqrDistanceFromPlayer = GetSqrDistance(thisTransform.position, gameManagerInstance.PlayersAlive[key].position);
+                    var thisSqrDistanceFromPlayer = GetSqrDistance(Transform.position, GameManager.Instance.PlayersAlive[key].position);
                     if (thisSqrDistanceFromPlayer > SquareOfPlayerDetectionRange)
                         continue;
                     if (sqrDistanceFromPlayer < thisSqrDistanceFromPlayer)
@@ -373,7 +357,7 @@ namespace Characters
             if (!hasEnmityListBeenUpdated || enmitiesAgainstPlayers.Count <= 0)
                 return;
 
-            currentTargetTransform = gameManagerInstance.PlayersAlive[Utilities.GetMaxValuePair(enmitiesAgainstPlayers).Key];
+            currentTargetTransform = GameManager.Instance.PlayersAlive[Utilities.GetMaxValuePair(enmitiesAgainstPlayers).Key];
             actionHandler.SetRecentTarget(actionHandler.CurrentTarget);
             actionHandler.SetCurrentTarget(currentTargetTransform.gameObject);
 

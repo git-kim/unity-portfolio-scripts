@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
 using System;
+using Enums;
 
 [Serializable]
 public class BuffInformationList
@@ -13,12 +14,6 @@ public class BuffInformationList
     }
 
     public int Count => buffInformationObjects.Count;
-}
-
-public enum BuffType
-{
-    Buff,
-    Debuff
 }
 
 [CreateAssetMenu(fileName = "Buff Information", menuName = "Scriptable Object/Buff Information", order = 2)]

@@ -4,6 +4,7 @@ using Characters.Handlers;
 using UserInterface;
 using Managers;
 using Characters.StatisticsScripts;
+using Enums;
 
 namespace Characters.CharacterActionCommands
 {
@@ -30,7 +31,7 @@ namespace Characters.CharacterActionCommands
             actorStats = ActorActionHandler.Stats;
             ActorIStatChangeDisplay = actorIStatChangeDisplay;
 
-            ParticleEffectName = ParticleEffectName.HealHP;
+            ParticleEffectName = ParticleEffectName.HealHitPoints;
         }
 
         private IEnumerator TakeAction(int actionID, ParticleEffectName particleEffectName,

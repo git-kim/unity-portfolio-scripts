@@ -4,6 +4,7 @@ using Characters.Handlers;
 using UserInterface;
 using Managers;
 using Characters.StatisticsScripts;
+using Enums;
 
 namespace Characters.CharacterActionCommands
 {
@@ -13,7 +14,8 @@ namespace Characters.CharacterActionCommands
 
         private float InvisibleGlobalCoolDownTime { get; set; }
 
-        public SprintAbility(GameObject actor, int buffIndex, OffGlobalCoolDownActionButton button, IStatChangeDisplay actorIStatChangeDisplay)
+        public SprintAbility(GameObject actor, int buffIndex,
+            OffGlobalCoolDownActionButton button, IStatChangeDisplay actorIStatChangeDisplay)
         {
             BuffIndex = buffIndex;
 
@@ -31,7 +33,9 @@ namespace Characters.CharacterActionCommands
             ParticleEffectName = ParticleEffectName.SprintBuff;
         }
 
-        private IEnumerator TakeAction(int actionID, ParticleEffectName particleEffectName, Vector3 localPosition, Vector3 toDirection, Vector3 localScale, bool shouldEffectFollowTarget = true)
+        private IEnumerator TakeAction(int actionID, ParticleEffectName particleEffectName,
+            Vector3 localPosition, Vector3 toDirection, Vector3 localScale,
+            bool shouldEffectFollowTarget = true)
         {
             ActorActionHandler.InvisibleGlobalCoolDownTime = InvisibleGlobalCoolDownTime;
 
@@ -50,7 +54,9 @@ namespace Characters.CharacterActionCommands
                 });
 
             if (particleEffectName != ParticleEffectName.None)
-                NonPooledParticleEffectManager.Instance.PlayParticleEffect(particleEffectName, ActorTransform, localPosition, toDirection, localScale, 1f, shouldEffectFollowTarget);
+                NonPooledParticleEffectManager.Instance.PlayParticleEffect(
+                    particleEffectName, ActorTransform, localPosition, toDirection,
+                    localScale, 1f, shouldEffectFollowTarget);
 
             yield return new WaitForSeconds(InvisibleGlobalCoolDownTime);
 
@@ -74,18 +80,10 @@ namespace Characters.CharacterActionCommands
             CoolDownTime = actionInfo.coolDownTime;
             InvisibleGlobalCoolDownTime = actionInfo.invisibleGlobalCoolDownTime;
 
-            if (ActorAnim.GetBool("Battle Pose On"))
-            {
-                EffectTime = 10f; // 10 seconds sprint
-                CurrentActionCoroutine = ActorMonoBehaviour.StartCoroutine(
-                    TakeAction(actionInfo.id, ParticleEffectName, Vector3.up * 0.2f, Vector3.zero, Vector3.one));
-            }
-            else
-            {
-                EffectTime = 20f; // 20 seconds sprint
-                CurrentActionCoroutine = ActorMonoBehaviour.StartCoroutine(
-                    TakeAction(actionInfo.id, ParticleEffectName, Vector3.up * 0.2f, Vector3.zero, Vector3.one));
-            }
+            EffectTime = GameManager.Instance.IsInBattle ? 10f : 20f;
+            CurrentActionCoroutine = ActorMonoBehaviour.StartCoroutine(
+                TakeAction(actionInfo.id, ParticleEffectName, Vector3.up * 0.2f,
+                Vector3.zero, Vector3.one));
         }
 
         public override void Stop()

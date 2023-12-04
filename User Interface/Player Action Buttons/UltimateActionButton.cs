@@ -1,4 +1,5 @@
-﻿using Managers;
+﻿using Enums;
+using Managers;
 using UnityEngine;
 
 public class UltimateActionButton : ActionButton

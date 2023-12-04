@@ -5,10 +5,12 @@
         HitPoints,
         MaximumHitPoints,
         HitPointsRestorability,
+        HitPointsAutoRegeneration,
 
         ManaPoints,
         MaximumManaPoints,
         ManaPointsRestorability,
+        ManaPointsAutoRegeneration,
 
         MeleeAttack,
         MagicAttack,

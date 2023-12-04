@@ -1,15 +1,12 @@
-﻿using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using Cinemachine;
 using System.Runtime.InteropServices;
-using Managers; // DllImport
+using Managers;
 
 public class PlayerCameraController : MonoBehaviour
 {
-    private GameManager gameManagerInstance;
-    private KeyManager keyManagerInstance;
-    readonly List<CinemachineFreeLook> cameras = new List<CinemachineFreeLook>();
-    private MousePosition mousePosition; // 참고: "out"으로 사용할 변수는 초기화할 필요가 없다.
+    private CinemachineFreeLook virtualMainCamera;
+    private MousePosition mousePosition;
     private float mouseWheelValue;
 
     private struct MousePosition
@@ -18,63 +15,46 @@ public class PlayerCameraController : MonoBehaviour
         public int Y;
     }
 
-    [DllImport("user32.dll")] // Windows 전용
+    [DllImport("user32.dll")] // Windows
     private static extern bool SetCursorPos(int x, int y);
 
-    [DllImport("user32.dll")] // Windows 전용
+    [DllImport("user32.dll")] // Windows
     private static extern bool GetCursorPos(out MousePosition mousePos);
 
     void Awake()
     {
-        gameManagerInstance = GameManager.Instance;
-        keyManagerInstance = KeyManager.Instance;
-
-        foreach (var cam in gameObject.GetComponentsInChildren<CinemachineFreeLook>())
-        {
-            cameras.Add(cam);
-        }
+        virtualMainCamera = GetComponentInChildren<CinemachineFreeLook>();
     }
 
     void Update()
     {
-        if (gameManagerInstance.State == GameState.CutscenePlaying)
-            return;
-
-        // 마우스 오른쪽 버튼 누른 채로 마우스 커서 이동 시 회전
-        if (keyManagerInstance.RMBDown)
+        if (KeyManager.Instance.RMBDown)
         {
-            foreach (var cam in cameras)
-            {
-                cam.m_XAxis.m_MaxSpeed = 8f;
-                cam.m_YAxis.m_MaxSpeed = 0.05f;
-            }
+            virtualMainCamera.m_XAxis.m_MaxSpeed = 8f;
+            virtualMainCamera.m_YAxis.m_MaxSpeed = 0.05f;
 
-            GetCursorPos(out mousePosition); // 현재 커서 위치 저장
-            Cursor.lockState = CursorLockMode.Locked; // 커서 이동 잠금(중앙)
+            GetCursorPos(out mousePosition);
+            Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
         }
-        else if (keyManagerInstance.RMBUp)
-        {
-            foreach (var cam in cameras)
-            {
-                cam.m_XAxis.m_MaxSpeed = 0f;
-                cam.m_YAxis.m_MaxSpeed = 0f;
-            }
 
-            Cursor.lockState = CursorLockMode.None; // 커서 이동 잠금 해제
-            SetCursorPos(mousePosition.X, mousePosition.Y); // 본래 커서 위치로 커서 이동하기
+        if (KeyManager.Instance.RMBUp)
+        {
+            virtualMainCamera.m_XAxis.m_MaxSpeed = 0f;
+            virtualMainCamera.m_YAxis.m_MaxSpeed = 0f;
+
+            SetCursorPos(mousePosition.X, mousePosition.Y);
+            Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
         }
 
-        // 마우스 휠 스크롤링 시 축소 / 확대
-        mouseWheelValue = keyManagerInstance.MouseWheel;
+        mouseWheelValue = KeyManager.Instance.MouseWheel;
 
         if (Mathf.Abs(mouseWheelValue) > 0.0078125f)
         {
-            foreach (var cam in cameras)
-            {
-                cam.m_Lens.FieldOfView = Mathf.Clamp(cam.m_Lens.FieldOfView + mouseWheelValue * 20f, 20, 80);
-            }
+            virtualMainCamera.m_Lens.FieldOfView =
+                Mathf.Clamp(virtualMainCamera.m_Lens.FieldOfView +
+                mouseWheelValue * 20f, 20f, 80f);
         }
     }
 }

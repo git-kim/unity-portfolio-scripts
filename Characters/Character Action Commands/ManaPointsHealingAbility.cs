@@ -4,6 +4,7 @@ using Characters.Handlers;
 using UserInterface;
 using Managers;
 using Characters.StatisticsScripts;
+using Enums;
 
 namespace Characters.CharacterActionCommands
 {
@@ -32,7 +33,7 @@ namespace Characters.CharacterActionCommands
 
             this.button = button;
 
-            ParticleEffectName = ParticleEffectName.HealMP;
+            ParticleEffectName = ParticleEffectName.HealManaPoints;
         }
 
         private IEnumerator TakeAction(int actionID, ParticleEffectName particleEffectName, Transform targetTransform, Vector3 localPosition, Vector3 toDirection, Vector3 localScale, bool shouldEffectFollowTarget = true)

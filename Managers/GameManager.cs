@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Enums;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
@@ -24,15 +25,31 @@ namespace Managers
         public float BGMVolume { get; set; } = 1f;
         public float SFXVolume { get; set; } = 1f;
 
-        [HideInInspector] public UnityEvent onGameTick;
-        [HideInInspector] public UnityEvent onGameTick2;
+        [NonSerialized] public UnityEvent onGameTick = new UnityEvent();
+        [NonSerialized] public UnityEvent onGameTick2 = new UnityEvent();
 
         [SerializeField] private BuffInformationList buffs;
         public BuffInformationList Buffs => buffs;
 
+        private Transform mainCameraTransform;
+        public Transform MainCameraTransform
+        { 
+            get
+            { 
+                if (mainCameraTransform == null)
+                    mainCameraTransform = Camera.main.SelfOrNull()?.transform;
+                return mainCameraTransform;
+            }
+        }
+
         public void SetErrorMessageDisplay(ErrorMessageDisplay errorMessageDisplay)
         {
             this.errorMessageDisplay = errorMessageDisplay;
+        }
+
+        private void Awake()
+        {
+            UnityEngine.Random.InitState(Environment.TickCount);
         }
 
         public void Start()
@@ -68,18 +85,7 @@ namespace Managers
                 return id;
             }
         }
-        public bool CheckCylinder(Vector3 start, Vector3 end, float radius, int layerMask, QueryTriggerInteraction queryTriggerInteraction)
-        {
-            Debug.DrawLine(start, end, Color.red);
 
-            if (!Physics.CheckCapsule(start, end, radius, layerMask, queryTriggerInteraction))
-                return false;
-
-            var startToEnd = end - start;
-            return Physics.CheckBox(start + 0.5f * startToEnd,
-                new Vector3(radius, radius, startToEnd.magnitude * 0.5f),
-                Quaternion.LookRotation(startToEnd), layerMask, queryTriggerInteraction);
-        }
         public void ShowErrorMessage(int errMsgID)
         {
             errorMessageDisplay.ShowErrorMessage(errMsgID);
