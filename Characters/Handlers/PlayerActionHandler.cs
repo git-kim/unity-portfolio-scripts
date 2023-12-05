@@ -84,7 +84,7 @@ namespace Characters.Handlers
             {
                 actionButton.SelfOrNull()?.Initialize(
                     () => SetRecentActionInput(actionButton.actionID),
-                    CharacterActions[actionButton.actionID].manaPointsCost,
+                    CharacterActions[actionButton.actionID],
                     this);
             }
 

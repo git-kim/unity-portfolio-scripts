@@ -1,8 +1,7 @@
-﻿using System.Linq;
-using UnityEngine;
-using Managers;
-using Characters.StatisticsScripts;
+﻿using Characters.StatisticsScripts;
 using Enums;
+using Managers;
+using System.Linq;
 
 public class GlobalCoolDownActionButton : ActionButton
 {
@@ -10,8 +9,6 @@ public class GlobalCoolDownActionButton : ActionButton
     private UIProgressBar coolDownTimeIndicator;
     private DisablenessIndicator disablenessIndicator;
     private UILabel manaPointsCostIndicator;
-    private int manaPointsCost = 0;
-    private float sqrRange = 0f;
 
     private void Awake()
     {
@@ -27,17 +24,13 @@ public class GlobalCoolDownActionButton : ActionButton
         }
     }
 
-    private void Start()
-    {
-        manaPointsCost = playerActionHandler.CharacterActions[actionID].manaPointsCost;
-        sqrRange = Mathf.Pow(playerActionHandler.CharacterActions[actionID].range, 2f);
-    }
-
     public sealed override void React()
     {
         coolDownTimeIndicator.Set(playerActionHandler.VisibleGlobalCoolDownTime / playerActionHandler.GlobalCoolDownTime, false);
-        if (gameManagerInstance.State != GameState.Running) disablenessIndicator.Enable();
-        else if (playerActionHandler.VisibleGlobalCoolDownTime <= 0f) disablenessIndicator.Disable();
+        if (gameManagerInstance.State != GameState.Running)
+            disablenessIndicator.SetActive(true);
+        else if (playerActionHandler.VisibleGlobalCoolDownTime <= 0f)
+            disablenessIndicator.SetActive(false);
     }
 
     public sealed override void React2()

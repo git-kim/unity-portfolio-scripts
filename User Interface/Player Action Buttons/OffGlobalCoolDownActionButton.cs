@@ -1,9 +1,11 @@
-﻿using System.Collections;
-using System.Linq;
-using UnityEngine;
-using Managers;
+﻿using Characters.Handlers;
 using Characters.StatisticsScripts;
 using Enums;
+using Managers;
+using System.Collections;
+using System.Linq;
+using UnityEngine;
+using UnityEngine.Events;
 
 public class OffGlobalCoolDownActionButton : ActionButton
 {
@@ -11,12 +13,10 @@ public class OffGlobalCoolDownActionButton : ActionButton
     private UIProgressBar coolDownTimeIndicator;
     private DisablenessIndicator disablenessIndicator;
     private UILabel manaPointsCostIndicator;
-    private int manaPointsCost = 0;
-    private float sqrRange = 0f;
-
-    private float currentCoolDownTime;
 
     private float actionCoolDownTime;
+    private float currentCoolDownTime;
+
 
     private Coroutine coolDownCoroutine;
 
@@ -38,13 +38,13 @@ public class OffGlobalCoolDownActionButton : ActionButton
         coolDownCoroutine = null;
     }
 
-    private void Start()
+    public override void Initialize(UnityAction onPressed,
+        CharacterAction characterAction, PlayerActionHandler playerActionHandler)
     {
-        manaPointsCost = playerActionHandler.CharacterActions[actionID].manaPointsCost;
-        sqrRange = Mathf.Pow(playerActionHandler.CharacterActions[actionID].range, 2f);
+        base.Initialize(onPressed, characterAction, playerActionHandler);
 
         currentCoolDownTime = 0f;
-        actionCoolDownTime = playerActionHandler.CharacterActions[actionID].coolDownTime;
+        actionCoolDownTime = characterAction.coolDownTime;
     }
 
     public sealed override void React()
@@ -57,12 +57,16 @@ public class OffGlobalCoolDownActionButton : ActionButton
         if ((playerActionHandler.VisibleGlobalCoolDownTime > 0f && !isUsableDuringGlobalCoolDown)
             || gameManagerInstance.State != GameState.Running
             || playerActionHandler.IsCasting)
-            disablenessIndicator.Enable();
-        else disablenessIndicator.Disable();
+            disablenessIndicator.SetActive(true);
+        else
+            disablenessIndicator.SetActive(false);
     }
 
     public sealed override void React2()
     {
+        if (manaPointsCostIndicator == null)
+            return;
+
         // Check Mana Points
         if (manaPointsCost > 0 && playerActionHandler.Stats[Stat.ManaPoints] < manaPointsCost)
         {

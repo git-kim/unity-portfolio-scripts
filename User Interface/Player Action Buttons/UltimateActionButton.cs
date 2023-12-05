@@ -8,7 +8,6 @@ public class UltimateActionButton : ActionButton
     private UIProgressBar ultimateGauge;
     private DisablenessIndicator disablenessIndicator;
     private UISprite disablenessIndicatorSprite;
-    private float sqrRange = 0f;
 
     void Awake()
     {
@@ -17,17 +16,15 @@ public class UltimateActionButton : ActionButton
         disablenessIndicator = GetComponentInChildren<DisablenessIndicator>(true);
         disablenessIndicatorSprite = disablenessIndicator.GetComponent<UISprite>();
     }
-    void Start()
-    {
-        sqrRange = Mathf.Pow(playerActionHandler.CharacterActions[actionID].range, 2f);
-    }
 
     public sealed override void React()
     {
         if (!gameObject.activeSelf) return;
-        if (playerActionHandler.VisibleGlobalCoolDownTime > 0f || gameManagerInstance.State != GameState.Running)
-            disablenessIndicator.Enable();
-        else disablenessIndicator.Disable();
+        if (playerActionHandler.VisibleGlobalCoolDownTime > 0f ||
+            gameManagerInstance.State != GameState.Running)
+            disablenessIndicator.SetActive(true);
+        else
+            disablenessIndicator.SetActive(false);
     }
 
     public sealed override void React2()
