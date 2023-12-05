@@ -153,8 +153,14 @@ namespace Characters
 
         private void Update()
         {
+            if (state == EnemyState.Dead)
+                return;
+
             switch (state)
             {
+                case EnemyState.Dying:
+                    Die();
+                    break;
                 case EnemyState.Idling:
                     Idle();
                     break;
@@ -170,9 +176,7 @@ namespace Characters
                 case EnemyState.Returning:
                     ResetAndReturn();
                     break;
-                case EnemyState.Dying:
-                    Die();
-                    break;
+
             }
         }
 
@@ -223,8 +227,6 @@ namespace Characters
                 return;
             }
 
-            if (currentTargetStatChangeHandler == null || currentTargetStatChangeHandler.HasZeroHitPoints) return;
-
             actionHandler.SqrDistanceFromCurrentTarget = GetSqrDistance(Transform.position, currentTargetTransform.position);
 
             if (actionHandler.SqrDistanceFromCurrentTarget <= MaxSquareOfMeleeAttackRange)
@@ -263,8 +265,6 @@ namespace Characters
                 state = EnemyState.Returning;
                 return;
             }
-
-            if (currentTargetStatChangeHandler == null || currentTargetStatChangeHandler.HasZeroHitPoints) return;
 
             actionHandler.SqrDistanceFromCurrentTarget = GetSqrDistance(Transform.position, currentTargetTransform.position);
 

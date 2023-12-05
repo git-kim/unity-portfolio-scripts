@@ -63,21 +63,15 @@ public class OffGlobalCoolDownActionButton : ActionButton
 
     public sealed override void React2()
     {
-        if (manaPointsCost == 0 || sqrRange == 0f) return;
-
         // Check Mana Points
-        if (playerActionHandler.Stats[Stat.ManaPoints] < manaPointsCost)
+        if (manaPointsCost > 0 && playerActionHandler.Stats[Stat.ManaPoints] < manaPointsCost)
         {
             manaPointsCostIndicator.effectColor = UnusablenessColor;
             return;
         }
-        else
-        {
-            manaPointsCostIndicator.effectColor = UsablenessColor;
-        }
 
         // Check Distance
-        if (playerActionHandler.SqrDistanceFromCurrentTarget > sqrRange)
+        if (sqrRange > 0 && playerActionHandler.SqrDistanceFromCurrentTarget > sqrRange)
         {
             manaPointsCostIndicator.effectColor = UnusablenessColor;
             return;

@@ -12,7 +12,7 @@ namespace Characters.CharacterActionCommands
         private readonly StatChangeHandler actorStatChangeHandler;
         private StatChangeHandler targetStatChangeHandler;
         private int actionID;
-        private int mPCost;
+        private int manaPointsCost;
         private float range;
 
         public FireballSpell(GameObject actor)
@@ -26,7 +26,7 @@ namespace Characters.CharacterActionCommands
             ActorTransform = actor.transform;
         }
 
-        private IEnumerator TakeAction(int mPCost, float range, int actionID, int actorID)
+        private IEnumerator TakeAction(int manaPointsCost, float range, int actionID, int actorID)
         {
             // Check Distance
             if (Vector3.SqrMagnitude(ActorTransform.position - Target.transform.position) > range * range)
@@ -53,7 +53,7 @@ namespace Characters.CharacterActionCommands
             if (!actorStatChangeHandler.HasZeroHitPoints && !targetStatChangeHandler.HasZeroHitPoints)
             {
                 fireballSpawner.SpawnFireball(Target, ActorStats[Stat.MagicAttack], in ActionName);
-                actorStatChangeHandler.DecreaseStat(Stat.ManaPoints, mPCost);
+                actorStatChangeHandler.DecreaseStat(Stat.ManaPoints, manaPointsCost);
 
                 if (targetStatChangeHandler.TryGetComponent<Enemy>(out var enemy)
                     && !actorStatChangeHandler.HasZeroHitPoints)
@@ -71,10 +71,10 @@ namespace Characters.CharacterActionCommands
 
         public override void Execute(int actorID, GameObject target, CharacterAction actionInfo)
         {
-            mPCost = actionInfo.manaPointsCost;
+            manaPointsCost = actionInfo.manaPointsCost;
 
             // Check Mana Points
-            if (mPCost > ActorStats[Stat.ManaPoints])
+            if (manaPointsCost > ActorStats[Stat.ManaPoints])
             {
                 GameManagerInstance.ShowErrorMessage(0);
                 return;
@@ -108,7 +108,7 @@ namespace Characters.CharacterActionCommands
             actionID = actionInfo.id;
             range = actionInfo.range;
 
-            CurrentActionCoroutine = ActorMonoBehaviour.StartCoroutine(TakeAction(mPCost, range, actionID, actorID));
+            CurrentActionCoroutine = ActorMonoBehaviour.StartCoroutine(TakeAction(manaPointsCost, range, actionID, actorID));
         }
 
         public override void Stop()
