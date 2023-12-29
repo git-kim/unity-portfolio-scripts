@@ -47,20 +47,20 @@ namespace Characters.Handlers
                 new CharacterAction.CreationContext(1, new FireballSpell(gameObject),
                 CharacterActionTargetType.NonSelf,
                 globalCoolDownTime, globalCoolDownTime, 0.5f, 25f, 0f, 250,
-                "ºÒµ¢ÀÌ", "25¹ÌÅÍ ÀÌ³» ¼±ÅÃ ´ë»ó¿¡°Ô ºÒµ¢ÀÌ¸¦ ´øÁø´Ù.")));
+                "ë¶ˆë©ì´", "25ë¯¸í„° ì´ë‚´ ì„ íƒ ëŒ€ìƒì—ê²Œ ë¶ˆë©ì´ë¥¼ ë˜ì§„ë‹¤.")));
 
             CharacterActions.Add(new CharacterAction(
                 new CharacterAction.CreationContext(2, new CurseSpell(gameObject, 3),
                 CharacterActionTargetType.NonSelf,
                 0f, globalCoolDownTime, 0.5f, 25f, 0f, 500,
-                "ÀúÁÖ", "25¹ÌÅÍ ÀÌ³» ¼±ÅÃ ´ë»ó¿¡°Ô ÀúÁÖ¸¦ ³»·Á 30ÃÊ µ¿¾È ÀÏÁ¤ ½Ã°£¸¶´Ù ´ë»ó HP¸¦ ¼Ò·® °¨¼ÒÇÑ´Ù.")));
+                "ì €ì£¼", "25ë¯¸í„° ì´ë‚´ ì„ íƒ ëŒ€ìƒì—ê²Œ ì €ì£¼ë¥¼ ë‚´ë ¤ 30ì´ˆ ë™ì•ˆ ì¼ì • ì‹œê°„ë§ˆë‹¤ ëŒ€ìƒ HPë¥¼ ì†ŒëŸ‰ ê°ì†Œí•œë‹¤.")));
 
             var hitPointsHealingAbility = new HitPointsHealingAbility(gameObject, 1, statChangeDisplay);
             CharacterActions.Add(new CharacterAction(
                 new CharacterAction.CreationContext(3, hitPointsHealingAbility,
                 CharacterActionTargetType.Self,
                 0f, globalCoolDownTime, 0.5f, 0f, 0f, 700,
-                "HP È¸º¹", "HP¸¦ 10ÃÊ µ¿¾È ÀÏÁ¤ ½Ã°£¸¶´Ù ¼Ò·® È¸º¹ÇÑ´Ù.")));
+                "HP íšŒë³µ", "HPë¥¼ 10ì´ˆ ë™ì•ˆ ì¼ì • ì‹œê°„ë§ˆë‹¤ ì†ŒëŸ‰ íšŒë³µí•œë‹¤.")));
 
             var manaPointsHealingAbility = new ManaPointsHealingAbility(gameObject, 2,
                 actionButtons[4].GetComponent<OffGlobalCoolDownActionButton>(), statChangeDisplay);
@@ -68,7 +68,7 @@ namespace Characters.Handlers
                 new CharacterAction.CreationContext(4, manaPointsHealingAbility,
                 CharacterActionTargetType.Self,
                 0f, 60f, 0.5f, 0f, 0f, 0,
-                "MP È¸º¹", "MP¸¦ 20ÃÊ µ¿¾È ÀÏÁ¤ ½Ã°£¸¶´Ù ¼Ò·® È¸º¹ÇÑ´Ù.", true)));
+                "MP íšŒë³µ", "MPë¥¼ 20ì´ˆ ë™ì•ˆ ì¼ì • ì‹œê°„ë§ˆë‹¤ ì†ŒëŸ‰ íšŒë³µí•œë‹¤.", true)));
 
             CharacterActions.Add(nullAction); // (not implemented) Ult.: non - self, off - global
 
@@ -78,7 +78,7 @@ namespace Characters.Handlers
                 new CharacterAction.CreationContext(6, sprint,
                 CharacterActionTargetType.Self,
                 0f, 60f, 0.5f, 0f, 0f, 0,
-                "Àé ¹ß³î¸²", "20ÃÊ(ÀüÅõ Áß È¿°ú Áö¼Ó ½Ã°£: 10ÃÊ) µ¿¾È ´õ »¡¸® °È°Å³ª ´õ »¡¸® ´Ş¸± ¼ö ÀÖ´Ù.")));
+                "ì° ë°œë†€ë¦¼", "20ì´ˆ(ì „íˆ¬ ì¤‘ íš¨ê³¼ ì§€ì† ì‹œê°„: 10ì´ˆ) ë™ì•ˆ ë” ë¹¨ë¦¬ ê±·ê±°ë‚˜ ë” ë¹¨ë¦¬ ë‹¬ë¦´ ìˆ˜ ìˆë‹¤.")));
 
             foreach (var actionButton in actionButtons)
             {
@@ -104,22 +104,22 @@ namespace Characters.Handlers
                 if (VisibleGlobalCoolDownTime < 1f
                     || (!IsCasting && CharacterActions[recentActionInput].canIgnoreVisibleGlobalCoolDownTime))
                 {
-                    ActionToTake = recentActionInput; // ¾×¼Ç ¿¹¾à
-                    SetRecentTarget(CurrentTarget); // ÇöÀç ¼±ÅÃ ´ë»ó ÀúÀå
+                    ActionToTake = recentActionInput; // ì•¡ì…˜ ì˜ˆì•½
+                    SetRecentTarget(CurrentTarget); // í˜„ì¬ ì„ íƒ ëŒ€ìƒ ì €ì¥
                 }
             }
 
-            recentActionInput = 0; // ÁÖÀÇ: ÀÌ ÁÙÀÌ ÀÖ¾î¾ß ¿Àµ¿ÀÛÇÏÁö ¾Ê´Â´Ù.
+            recentActionInput = 0; // ì£¼ì˜: ì´ ì¤„ì´ ìˆì–´ì•¼ ì˜¤ë™ì‘í•˜ì§€ ì•ŠëŠ”ë‹¤.
 
             if (isMoving)
             {
                 if (IsCasting && VisibleGlobalCoolDownTime > 0.5f)
                 {
-                    StopTakingAction(); // Ä³½ºÆÃ ¾×¼Ç Áß´Ü
-                    RemoveActionToTake(); // ¾×¼Ç ¿¹¾à Ãë¼Ò
+                    StopTakingAction(); // ìºìŠ¤íŒ… ì•¡ì…˜ ì¤‘ë‹¨
+                    RemoveActionToTake(); // ì•¡ì…˜ ì˜ˆì•½ ì·¨ì†Œ
                 }
                 else if (CharacterActions[ActionToTake].castTime > 0f)
-                    RemoveActionToTake(); // Ä³½ºÆÃ ¾×¼Ç ¿¹¾à Ãë¼Ò
+                    RemoveActionToTake(); // ìºìŠ¤íŒ… ì•¡ì…˜ ì˜ˆì•½ ì·¨ì†Œ
             }
 
             if (ActionToTake != 0
@@ -147,7 +147,7 @@ namespace Characters.Handlers
         private bool CheckIfPlayerIsNotLookingAtTarget()
         {
             return Vector3.Dot(Vector3.Scale(RecentTarget.transform.position - playerTransform.position, forwardRight).normalized,
-                Vector3.Scale(playerAnimator.GetBoneTransform(HumanBodyBones.Head).forward, forwardRight).normalized) < 0.8f; // ³»Àû °è»ê °á°ú ¹İÈ¯
+                Vector3.Scale(playerAnimator.GetBoneTransform(HumanBodyBones.Head).forward, forwardRight).normalized) < 0.8f; // ë‚´ì  ê³„ì‚° ê²°ê³¼ ë°˜í™˜
         }
 
         private void MakePlayerLookAtTarget()
@@ -193,7 +193,7 @@ namespace Characters.Handlers
                 = (CurrentTarget == null) ?
                 0f : Vector3.SqrMagnitude(playerTransform.position - CurrentTarget.transform.position);
 
-            if (value > 1600f && !(CurrentTarget == null)) // ¼±ÅÃ ÁßÀÎ ´ë»ó°ú ¶³¾îÁø °Å¸®°¡ 40f¸¦ ÃÊ°úÇÏ¸é
+            if (value > 1600f && !(CurrentTarget == null)) // ì„ íƒ ì¤‘ì¸ ëŒ€ìƒê³¼ ë–¨ì–´ì§„ ê±°ë¦¬ê°€ 40fë¥¼ ì´ˆê³¼í•˜ë©´
             {
                 onTargetToDeselect.Invoke();
             }
