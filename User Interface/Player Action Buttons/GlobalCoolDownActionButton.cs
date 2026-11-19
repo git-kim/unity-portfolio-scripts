@@ -1,32 +1,29 @@
-﻿using Characters.StatisticsScripts;
+using Characters.StatisticsScripts;
 using Enums;
 using Managers;
 using System.Linq;
+using TMPro;
+using UserInterface;
 
 public class GlobalCoolDownActionButton : ActionButton
 {
     private GameManager gameManagerInstance;
-    private UIProgressBar coolDownTimeIndicator;
+    private ProgressBar coolDownTimeIndicator;
     private DisablenessIndicator disablenessIndicator;
-    private UILabel manaPointsCostIndicator;
+    private TMP_Text manaPointsCostIndicator;
 
     private void Awake()
     {
         gameManagerInstance = GameManager.Instance;
-        coolDownTimeIndicator = GetComponentInChildren<UIProgressBar>(true);
+        coolDownTimeIndicator = GetComponentInChildren<ProgressBar>(true);
         disablenessIndicator = GetComponentInChildren<DisablenessIndicator>(true);
-
-        foreach (var indicator in GetComponentsInChildren<UILabel>(true)
-                     .Where(indicator => indicator.name.Contains("MP")))
-        {
-            manaPointsCostIndicator = indicator;
-            break;
-        }
+        manaPointsCostIndicator = GetComponentsInChildren<TMP_Text>(true)
+            .FirstOrDefault(indicator => indicator.name.Contains("MP"));
     }
 
     public sealed override void React()
     {
-        coolDownTimeIndicator.Set(playerActionHandler.VisibleGlobalCoolDownTime / playerActionHandler.GlobalCoolDownTime, false);
+        coolDownTimeIndicator.Value = playerActionHandler.VisibleGlobalCoolDownTime / playerActionHandler.GlobalCoolDownTime;
         if (gameManagerInstance.State != GameState.Running)
             disablenessIndicator.SetActive(true);
         else if (playerActionHandler.VisibleGlobalCoolDownTime <= 0f)
@@ -38,17 +35,17 @@ public class GlobalCoolDownActionButton : ActionButton
         // Check Mana Points
         if (manaPointsCost > 0 && playerActionHandler.Stats[Stat.ManaPoints] < manaPointsCost)
         {
-            manaPointsCostIndicator.effectColor = UnusablenessColor;
+            manaPointsCostIndicator.outlineColor = UnusablenessColor;
             return;
         }
 
         // Check Distance
         if (sqrRange > 0 && playerActionHandler.SqrDistanceFromCurrentTarget > sqrRange)
         {
-            manaPointsCostIndicator.effectColor = UnusablenessColor;
+            manaPointsCostIndicator.outlineColor = UnusablenessColor;
             return;
         }
 
-        manaPointsCostIndicator.effectColor = UsablenessColor;
+        manaPointsCostIndicator.outlineColor = UsablenessColor;
     }
 }

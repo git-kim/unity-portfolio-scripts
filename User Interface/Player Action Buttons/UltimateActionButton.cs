@@ -1,20 +1,19 @@
-﻿using Enums;
+using Enums;
 using Managers;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class UltimateActionButton : ActionButton
 {
     private GameManager gameManagerInstance;
-    private UIProgressBar ultimateGauge;
     private DisablenessIndicator disablenessIndicator;
-    private UISprite disablenessIndicatorSprite;
+    private Image disablenessIndicatorImage;
 
     void Awake()
     {
         gameManagerInstance = GameManager.Instance;
-        ultimateGauge = GetComponentInChildren<UIProgressBar>(true);
         disablenessIndicator = GetComponentInChildren<DisablenessIndicator>(true);
-        disablenessIndicatorSprite = disablenessIndicator.GetComponent<UISprite>();
+        disablenessIndicatorImage = disablenessIndicator.GetComponent<Image>();
     }
 
     public sealed override void React()
@@ -35,10 +34,10 @@ public class UltimateActionButton : ActionButton
         // Check Distance
         if (playerActionHandler.SqrDistanceFromCurrentTarget > sqrRange)
         {
-            disablenessIndicatorSprite.color = UnusablenessColor;
+            disablenessIndicatorImage.color = UnusablenessColor;
             return;
         }
 
-        disablenessIndicatorSprite.color = Color.white;
+        disablenessIndicatorImage.color = Color.white;
     }
 }

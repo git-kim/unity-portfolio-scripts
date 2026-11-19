@@ -1,6 +1,7 @@
-﻿using Characters;
+using Characters;
 using Managers;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 public class PlayerSelectTarget : MonoBehaviour
 {
@@ -12,7 +13,7 @@ public class PlayerSelectTarget : MonoBehaviour
 
     private void Start()
     {
-        player = FindObjectOfType<Player>();
+        player = FindAnyObjectByType<Player>();
         mainCamera = Camera.main;
         keyManagerInstance = KeyManager.Instance;
     }
@@ -25,12 +26,10 @@ public class PlayerSelectTarget : MonoBehaviour
         if (player.IsDead)
             return;
 
-        ray = mainCamera.ScreenPointToRay(Input.mousePosition);
-
-        if (UICamera.Raycast(Input.mousePosition)) // NGUI
-        {
+        if (EventSystem.current && EventSystem.current.IsPointerOverGameObject()) // clicked on UI
             return;
-        }
+
+        ray = mainCamera.ScreenPointToRay(Input.mousePosition);
 
         if (Physics.SphereCast(ray, 0.8f, out hit, 34f, 1 << 11)) // 11: Enemy
         {

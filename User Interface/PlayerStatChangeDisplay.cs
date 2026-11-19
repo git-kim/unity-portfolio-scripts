@@ -1,6 +1,8 @@
-﻿using Managers;
+using Managers;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace UserInterface
 {
@@ -26,26 +28,23 @@ namespace UserInterface
         private void Start()
         {
             buffs = GameManager.Instance.Buffs;
-            //playerActionCommands = FindObjectOfType<Player>().ActionCommands;
-            playerBuffInfoDisplay = FindObjectOfType<PlayerBuffInfoDisplay>();
+            playerBuffInfoDisplay = FindAnyObjectByType<PlayerBuffInfoDisplay>();
+        }
+
+        private GameObject Spawn(string poolName, Vector3 localPosition)
+        {
+            var obj = objectPoolManagerInstance.SpawnObjectFromPool(poolName, Vector3.zero, Quaternion.identity, false);
+            obj.transform.SetParent(gameObject.transform, false);
+            obj.transform.localPosition = localPosition;
+            return obj;
         }
 
         public void ShowBuffEnd(int buffIndex)
         {
-            var obj = objectPoolManagerInstance.SpawnObjectFromPool("BuffOffPlayer", Vector3.zero, Quaternion.identity, false);
-            obj.transform.SetParent(gameObject.transform, false);
-            obj.transform.localPosition = buffOnOffObjectSpawnLocalPos;
-
-            var objSprite = obj.GetComponentInChildren<UISprite>(true);
-            objSprite.spriteName = buffs[buffIndex].spriteName;
-            objSprite.alpha = 1f;
-
-            var objLabel = obj.GetComponentInChildren<UILabel>(true);
-            objLabel.alpha = 1f;
-            objLabel.text = "- " + buffs[buffIndex].buffName;
-
+            var obj = Spawn("BuffOffPlayer", buffOnOffObjectSpawnLocalPos);
+            obj.GetComponentInChildren<Image>(true).sprite = buffs[buffIndex].icon;
+            obj.GetComponentInChildren<TMP_Text>(true).text = "- " + buffs[buffIndex].buffName;
             buffStartEndObjsInUse.Add(obj);
-
             obj.SetActive(true);
 
             playerBuffInfoDisplay.RemoveDisplayingBuff(buffIndex);
@@ -53,20 +52,10 @@ namespace UserInterface
 
         public void ShowBuffStart(int buffIndex, float effectTime)
         {
-            var obj = objectPoolManagerInstance.SpawnObjectFromPool("BuffOnPlayer", Vector3.zero, Quaternion.identity, false);
-            obj.transform.SetParent(gameObject.transform, false);
-            obj.transform.localPosition = buffOnOffObjectSpawnLocalPos;
-
-            var objSprite = obj.GetComponentInChildren<UISprite>(true);
-            objSprite.spriteName = buffs[buffIndex].spriteName;
-            objSprite.alpha = 1f;
-
-            var objLabel = obj.GetComponentInChildren<UILabel>(true);
-            objLabel.alpha = 1f;
-            objLabel.text = "+ " + buffs[buffIndex].buffName;
-
+            var obj = Spawn("BuffOnPlayer", buffOnOffObjectSpawnLocalPos);
+            obj.GetComponentInChildren<Image>(true).sprite = buffs[buffIndex].icon;
+            obj.GetComponentInChildren<TMP_Text>(true).text = "+ " + buffs[buffIndex].buffName;
             buffStartEndObjsInUse.Add(obj);
-
             obj.SetActive(true);
 
             playerBuffInfoDisplay.AddBuffToDisplay(buffIndex, effectTime);
@@ -74,20 +63,11 @@ namespace UserInterface
 
         public void ShowHitPointsChange(int change, bool isDecrement, in string actionName)
         {
-            var obj = objectPoolManagerInstance.SpawnObjectFromPool(!isDecrement ?
-                    "HPRestorationPlayer" : "DamagePlayer",
-                Vector3.zero, Quaternion.identity, false);
-            obj.transform.SetParent(gameObject.transform, false);
-            obj.transform.localPosition = hPChangeObjectSpawnLocalPos;
-
-            var objLabels = obj.GetComponentsInChildren<UILabel>(true);
-            objLabels[0].alpha = 1f;
+            var obj = Spawn(!isDecrement ? "HPRestorationPlayer" : "DamagePlayer", hPChangeObjectSpawnLocalPos);
+            var objLabels = obj.GetComponentsInChildren<TMP_Text>(true);
             objLabels[0].text = actionName ?? "";
-            objLabels[1].alpha = 1f;
             objLabels[1].text = change.ToString();
-
             hPChangeObjsInUse.Add(obj);
-
             obj.SetActive(true);
         }
 

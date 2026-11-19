@@ -1,25 +1,22 @@
-﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace UserInterface
 {
+    // Floating stat-change text: fades out once per activation, then returns itself to the pool by deactivating.
+    [RequireComponent(typeof(UiFade))]
     public class StatChangePrefabController : MonoBehaviour
     {
-        private readonly List<TweenAlpha> tweenAlphas = new List<TweenAlpha>();
+        private UiFade fade;
 
         private void Awake()
         {
-            tweenAlphas.AddRange(GetComponentsInChildren<TweenAlpha>());
-            tweenAlphas[0].AddOnFinished(() => gameObject.SetActive(false));
+            fade = GetComponent<UiFade>();
+            fade.Finished += () => gameObject.SetActive(false);
         }
 
         private void OnEnable()
         {
-            foreach (var tweenAlpha in tweenAlphas)
-            {
-                tweenAlpha.ResetToBeginning();
-                tweenAlpha.PlayForward();
-            }
+            fade.Play();
         }
     }
 }

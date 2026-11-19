@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using UnityEngine;
 using Characters.Handlers;
 using UnityEngine.Events;
@@ -167,16 +167,17 @@ namespace Characters
             DeselectTarget();
             yield return new WaitForSeconds(0.5f);
 
-            GameManager.Instance.State = GameState.Over;
+            GameManager.Instance.EndGame(GameState.Over);
         }
 
-        private void FixedUpdate()
+        // Timers and target checks run once per rendered frame (Update), not on the physics step.
+        private void UpdateTimersAndTarget()
         {
             actionHandler.UpdateGlobalCoolDownTime();
 
             UpdateAudioListenerRotation();
 
-            if (GameManager.Instance.State == GameState.Over || statChangeHandler.HasZeroHitPoints)
+            if (GameManager.Instance.State != GameState.Running || statChangeHandler.HasZeroHitPoints)
                 return;
 
             actionHandler.UpdateSqrDistanceFromCurrentTarget(
@@ -192,12 +193,14 @@ namespace Characters
 
         private void Update()
         {
-            if (GameManager.Instance.State != GameState.Over && !statChangeHandler.HasZeroHitPoints)
+            UpdateTimersAndTarget();
+
+            if (GameManager.Instance.State == GameState.Running && !statChangeHandler.HasZeroHitPoints)
                 ToggleBattlePoseIfNeeded();
 
             Locomote();
 
-            if (GameManager.Instance.State != GameState.Over && !statChangeHandler.HasZeroHitPoints)
+            if (GameManager.Instance.State == GameState.Running && !statChangeHandler.HasZeroHitPoints)
                 actionHandler.Act(IsMoving);
         }
 

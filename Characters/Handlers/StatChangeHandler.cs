@@ -72,6 +72,9 @@ namespace Characters.Handlers
 
         public void IncreaseStat(Stat stat, int increment)
         {
+            if (stat == Stat.HitPoints && HasZeroHitPoints)
+                return; // the dead stay dead; a late heal tick must not revive them
+
             var value = stats[stat] += increment;
 
             switch (stat)

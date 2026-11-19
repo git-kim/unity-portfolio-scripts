@@ -1,4 +1,5 @@
-﻿using Enums;
+using Characters;
+using Enums;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -15,11 +16,18 @@ namespace Managers
         public Dictionary<int, Transform> PlayersAlive { get; set; } = new Dictionary<int, Transform>();
         public Dictionary<int, Transform> EnemiesAlive { get; set; } = new Dictionary<int, Transform>();
 
-        [NonSerialized] public bool IsInBattle = false;
+        private readonly HashSet<Enemy> engagedEnemies = new HashSet<Enemy>();
+        public bool IsInBattle => engagedEnemies.Count > 0;
 
         private ErrorMessageDisplay errorMessageDisplay;
 
-        public GameState State { get; set; } = GameState.Running;
+        public GameState State { get; private set; } = GameState.Running;
+
+        /// <summary>Raised once, when the boss dies (Cleared) or the player dies (Over).</summary>
+        public event Action<GameState> GameEnded;
+
+        /// <summary>Raised whenever any enemy dies.</summary>
+        public event Action<Enemy> EnemyDied;
 
         public float MasterVolume { get; set; } = 0.5f;
         public float BGMVolume { get; set; } = 1f;
@@ -33,9 +41,9 @@ namespace Managers
 
         private Transform mainCameraTransform;
         public Transform MainCameraTransform
-        { 
+        {
             get
-            { 
+            {
                 if (mainCameraTransform == null)
                     mainCameraTransform = Camera.main.SelfOrNull()?.transform;
                 return mainCameraTransform;
@@ -86,24 +94,47 @@ namespace Managers
             }
         }
 
+        public void SetEngaged(Enemy enemy, bool isEngaged)
+        {
+            if (isEngaged)
+                engagedEnemies.Add(enemy);
+            else
+                engagedEnemies.Remove(enemy);
+        }
+
+        public void NotifyEnemyDied(Enemy enemy)
+        {
+            engagedEnemies.Remove(enemy);
+            EnemyDied?.Invoke(enemy);
+
+            if (enemy.IsBoss)
+                EndGame(GameState.Cleared);
+        }
+
+        /// <summary>Ends the game with the given result. Only the first call has an effect.</summary>
+        public void EndGame(GameState result)
+        {
+            if (State != GameState.Running || result == GameState.Running)
+                return;
+
+            State = result;
+            engagedEnemies.Clear();
+            GameEnded?.Invoke(result);
+        }
+
         public void ShowErrorMessage(int errMsgID)
         {
             errorMessageDisplay.ShowErrorMessage(errMsgID);
         }
 
+        public void ShowMessage(string message)
+        {
+            errorMessageDisplay.SelfOrNull()?.ShowMessage(message);
+        }
+
         void Tick()
         {
             onGameTick.Invoke();
-
-            if (IsInBattle && EnemiesAlive.Count == 0)
-            {
-                IsInBattle = false;
-            }
-            else if (IsInBattle && PlayersAlive.Count == 0)
-            {
-                IsInBattle = false;
-                State = GameState.Over;
-            }
         }
 
         void Tick2()

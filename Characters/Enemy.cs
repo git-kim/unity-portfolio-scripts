@@ -1,4 +1,5 @@
-﻿using Characters.Handlers;
+using Characters.EnemySkills;
+using Characters.Handlers;
 using Characters.StatisticsScripts;
 using Managers;
 using System.Collections.Generic;
@@ -32,13 +33,30 @@ namespace Characters
         private const float SquareOfStoppingDistance = 16f;
         private const float SquareOfPlayerDetectionRange = 100f;
 
-        private const float normalAttackPeriod = 3f;
+        [Header("Identity")]
+        [SerializeField] private string displayName = "언데드 기사";
+        [SerializeField] private bool isBoss = true;
+        public string DisplayName => displayName;
+        public bool IsBoss => isBoss;
+
+        [Header("Stats")]
+        [SerializeField] private int maximumHitPoints = 2500;
+        [SerializeField] private int meleeAttack = 270;
+        [SerializeField] private int meleeDefense = 160;
+        [SerializeField] private int magicAttack = 10;
+        [SerializeField] private int magicDefense = 10;
+        [SerializeField] private float normalAttackPeriod = 3f;
         private float lastAttackTime;
 
-        private CastingBarDisplay castingBarDisplay; // not added yet.
+        [Header("Skill")]
+        [SerializeField] private EnemySkill skill;
+
+        [Header("Displays")]
+        [SerializeField] private EnemyCastingBarDisplay castingBarDisplay;
         [SerializeField] private EnemyHitPointsDisplay hitPointsDisplay;
         [SerializeField] private EnemyStatChangeDisplay enemyStatChangeDisplay;
         public IStatChangeDisplay StatChangeDisplay => enemyStatChangeDisplay;
+        public EnemyCastingBarDisplay CastingBar => castingBarDisplay;
 
         [SerializeField] private EnemyActionHandler actionHandler;
         [SerializeField] private NavMeshAgent navMeshAgent;
@@ -62,8 +80,6 @@ namespace Characters
             SetStats();
             InitializeStatChangeHandler();
 
-            castingBarDisplay = null;
-
             currentTargetTransform = null;
 
             originalPosition = Transform.position;
@@ -72,19 +88,23 @@ namespace Characters
             InitializeCharacterActionHandler();
 
             hitPointsDisplay.Initialize(Transform, CharacterController);
+            enemyStatChangeDisplay.Initialize(this, CharacterController);
+
+            if (skill)
+                skill.Initialize(this, Animator);
         }
 
         private void SetStats()
         {
             Stats = new StatisticsBuilder()
-                .SetBaseValue(Stat.HitPoints, 2500)
-                .SetBaseValue(Stat.MaximumHitPoints, 2500)
+                .SetBaseValue(Stat.HitPoints, maximumHitPoints)
+                .SetBaseValue(Stat.MaximumHitPoints, maximumHitPoints)
                 .SetBaseValue(Stat.ManaPoints, 1)
                 .SetBaseValue(Stat.MaximumManaPoints, 1)
-                .SetBaseValue(Stat.MeleeAttack, 270)
-                .SetBaseValue(Stat.MeleeDefense, 160)
-                .SetBaseValue(Stat.MagicAttack, 10)
-                .SetBaseValue(Stat.MagicDefense, 10);
+                .SetBaseValue(Stat.MeleeAttack, meleeAttack)
+                .SetBaseValue(Stat.MeleeDefense, meleeDefense)
+                .SetBaseValue(Stat.MagicAttack, magicAttack)
+                .SetBaseValue(Stat.MagicDefense, magicDefense);
         }
 
         private void InitializeStatChangeHandler()
@@ -95,16 +115,20 @@ namespace Characters
                 stats = Stats,
                 hitAndManaPointsDisplay = hitPointsDisplay,
                 statChangeDisplay = StatChangeDisplay,
-                onHitPointsBecomeZero = () =>
-                {
-                    GameManager.Instance.EnemiesAlive.Remove(Identifier);
-                    GameManager.Instance.onGameTick2.RemoveListener(UpdateCurrentTarget);
-                    GameManager.Instance.onGameTick.RemoveListener(UpdateStat);
-                    // StartCoroutine(EndGame());
-                    StatChangeDisplay.RemoveAllDisplayingBuffs();
-                    state = EnemyState.Dying;
-                }
+                onHitPointsBecomeZero = OnHitPointsBecomeZero
             });
+        }
+
+        private void OnHitPointsBecomeZero()
+        {
+            GameManager.Instance.EnemiesAlive.Remove(Identifier);
+            GameManager.Instance.onGameTick2.RemoveListener(UpdateCurrentTarget);
+            GameManager.Instance.onGameTick.RemoveListener(UpdateStat);
+            StatChangeDisplay.RemoveAllDisplayingBuffs();
+            if (skill)
+                skill.Cancel();
+            state = EnemyState.Dying;
+            GameManager.Instance.NotifyEnemyDied(this);
         }
 
         private void InitializeCharacterActionHandler()
@@ -142,6 +166,18 @@ namespace Characters
             hasEnmityListBeenUpdated = true;
         }
 
+        /// <summary>Applies damage from this enemy to a target and shows it.</summary>
+        public void DealDamage(StatChangeHandler target, int attackPower, bool isMelee, string actionName)
+        {
+            if (!target || target.HasZeroHitPoints)
+                return;
+
+            var effectiveDamage = target.GetEffectiveDamage(attackPower, isMelee,
+                Utilities.GetRandomFloatFromSineDistribution(0.96f, 1.04f));
+            target.DecreaseStat(Stat.HitPoints, effectiveDamage);
+            target.ShowHitPointsChange(effectiveDamage, true, actionName);
+        }
+
         private void Start()
         {
             Identifier = GameManager.Instance.AddEnemyAlive(Identifier, Transform);
@@ -160,7 +196,7 @@ namespace Characters
             {
                 case EnemyState.Dying:
                     Die();
-                    break;
+                    return;
                 case EnemyState.Idling:
                     Idle();
                     break;
@@ -171,13 +207,19 @@ namespace Characters
                     AttackPlayer();
                     break;
                 case EnemyState.Casting:
-                    // Not implemented.
+                    Cast();
                     break;
                 case EnemyState.Returning:
                     ResetAndReturn();
                     break;
-
             }
+
+            UpdateMovementAnimation();
+        }
+
+        private void UpdateMovementAnimation()
+        {
+            Animator.SetInteger(MovementMode, navMeshAgent.velocity.sqrMagnitude > 0f ? 2 : 0);
         }
 
         float GetSqrDistance(Vector3 position1, Vector3 position2)
@@ -189,41 +231,75 @@ namespace Characters
         {
             Vector3 direction = currentTargetTransform.position - Transform.position;
             direction.y = 0f;
-            Transform.forward = direction;
+            if (direction.sqrMagnitude > 0.0001f)
+                Transform.forward = direction;
         }
 
         private void Die()
         {
+            Animator.SetInteger(MovementMode, 0);
             Animator.SetTrigger(Dead);
             GameManager.Instance.EnemiesAlive.Remove(Identifier);
             navMeshAgent.enabled = false;
+            hitPointsDisplay.SetActive(false);
+            if (castingBarDisplay)
+                castingBarDisplay.StopShowingCastingBar();
             StopAllCoroutines();
             state = EnemyState.Dead;
         }
 
+        private void StartReturning()
+        {
+            if (skill)
+                skill.Cancel();
+            navMeshAgent.isStopped = false;
+            navMeshAgent.SetDestination(originalPosition);
+            GameManager.Instance.SetEngaged(this, false);
+            state = EnemyState.Returning;
+        }
+
         private void ResetAndReturn()
         {
-            if (navMeshAgent.remainingDistance < 0.05f)
-            {
-                Transform.position = originalPosition;
-                Transform.rotation = originalRotation;
-                navMeshAgent.velocity = Vector3.zero;
+            if (navMeshAgent.pathPending || navMeshAgent.remainingDistance >= 0.05f)
+                return;
 
-                statChangeHandler.ActiveStatChangingEffects.Clear();
-                Stats[Stat.HitPoints] = Stats[Stat.MaximumHitPoints];
-                statChangeHandler.UpdateHitPointsDisplay();
+            Transform.position = originalPosition;
+            Transform.rotation = originalRotation;
+            navMeshAgent.velocity = Vector3.zero;
 
-                state = EnemyState.Idling;
-                Animator.SetInteger(MovementMode, 0);
-            }
+            statChangeHandler.ActiveStatChangingEffects.Clear();
+            Stats[Stat.HitPoints] = Stats[Stat.MaximumHitPoints];
+            statChangeHandler.UpdateHitPointsDisplay();
+
+            enmitiesAgainstPlayers.Clear();
+            actionHandler.SetRecentTarget(null);
+            actionHandler.SetCurrentTarget(null);
+            currentTargetTransform = null;
+            currentTargetStatChangeHandler = null;
+
+            state = EnemyState.Idling;
+            Animator.SetInteger(MovementMode, 0);
+        }
+
+        private bool HasNoTargetLeft()
+        {
+            return GameManager.Instance.PlayersAlive.Count == 0 || currentTargetTransform == null;
+        }
+
+        private void Cast()
+        {
+            if (skill && skill.IsRunning)
+                return;
+
+            navMeshAgent.isStopped = false;
+            state = EnemyState.Attacking;
         }
 
         private void AttackPlayer()
         {
-            if (GameManager.Instance.PlayersAlive.Count == 0)
+            if (HasNoTargetLeft())
             {
-                navMeshAgent.SetDestination(originalPosition);
-                state = EnemyState.Returning;
+                StartReturning();
                 return;
             }
 
@@ -232,6 +308,15 @@ namespace Characters
             if (actionHandler.SqrDistanceFromCurrentTarget <= MaxSquareOfMeleeAttackRange)
             {
                 LookAtCurrentTarget();
+
+                if (skill && skill.TryActivate(currentTargetTransform, currentTargetStatChangeHandler,
+                        actionHandler.SqrDistanceFromCurrentTarget))
+                {
+                    navMeshAgent.SetDestination(Transform.position);
+                    navMeshAgent.isStopped = true;
+                    state = EnemyState.Casting;
+                    return;
+                }
 
                 if (actionHandler.SqrDistanceFromCurrentTarget > SquareOfStoppingDistance)
                     navMeshAgent.SetDestination(currentTargetTransform.position);
@@ -243,12 +328,7 @@ namespace Characters
                     lastAttackTime = Time.time;
                     Animator.SetInteger(MovementMode, 0);
                     Animator.SetTrigger(Attack);
-
-                    var effectiveDamage =
-                        currentTargetStatChangeHandler.GetEffectiveDamage(Stats[Stat.MeleeAttack], true,
-                        Utilities.GetRandomFloatFromSineDistribution(0.96f, 1.04f));
-                    currentTargetStatChangeHandler.DecreaseStat(Stat.HitPoints, effectiveDamage);
-                    currentTargetStatChangeHandler.ShowHitPointsChange(effectiveDamage, true, null);
+                    DealDamage(currentTargetStatChangeHandler, Stats[Stat.MeleeAttack], true, null);
                 }
             }
             else
@@ -259,10 +339,9 @@ namespace Characters
 
         private void ChasePlayer()
         {
-            if (GameManager.Instance.PlayersAlive.Count == 0)
+            if (HasNoTargetLeft())
             {
-                navMeshAgent.SetDestination(originalPosition);
-                state = EnemyState.Returning;
+                StartReturning();
                 return;
             }
 
@@ -270,7 +349,7 @@ namespace Characters
 
             if (actionHandler.SqrDistanceFromCurrentTarget > MaxSquareOfChaseDistance)
             {
-                state = EnemyState.Returning;
+                StartReturning();
             }
             else if (actionHandler.SqrDistanceFromCurrentTarget > MaxSquareOfMeleeAttackRange)
             {
@@ -292,18 +371,14 @@ namespace Characters
 
                 if (actionHandler.SqrDistanceFromCurrentTarget <= MaxSquareOfChaseDistance)
                 {
-                    if (actionHandler.SqrDistanceFromCurrentTarget > MaxSquareOfMeleeAttackRange)
-                    {
-                        state = EnemyState.Locomoting;
-                    }
-                    else
-                    {
-                        state = EnemyState.Attacking;
-                    }
-                }
+                    state = actionHandler.SqrDistanceFromCurrentTarget > MaxSquareOfMeleeAttackRange
+                        ? EnemyState.Locomoting
+                        : EnemyState.Attacking;
 
-                if (!GameManager.Instance.IsInBattle)
-                    GameManager.Instance.IsInBattle = true;
+                    if (skill)
+                        skill.ResetCoolDown();
+                    GameManager.Instance.SetEngaged(this, true);
+                }
             }
             else if (GameManager.Instance.PlayersAlive.Count > 0)
             {
@@ -330,18 +405,6 @@ namespace Characters
             }
         }
 
-        private void FixedUpdate()
-        {
-            if (navMeshAgent.velocity.sqrMagnitude > 0f)
-            {
-                Animator.SetInteger(MovementMode, 2);
-            }
-            else
-            {
-                Animator.SetInteger(MovementMode, 0);
-            }
-        }
-
         private void UpdateCurrentTarget()
         {
             if (currentTargetStatChangeHandler.SelfOrNull() != null && currentTargetStatChangeHandler.HasZeroHitPoints)
@@ -352,6 +415,17 @@ namespace Characters
                 actionHandler.SetCurrentTarget(null);
                 currentTargetTransform = null;
                 currentTargetStatChangeHandler = null;
+            }
+
+            // Forget players that are no longer alive so the lookup below cannot fail.
+            if (enmitiesAgainstPlayers.Count > 0)
+            {
+                var gone = new List<int>();
+                foreach (var key in enmitiesAgainstPlayers.Keys)
+                    if (!GameManager.Instance.PlayersAlive.ContainsKey(key))
+                        gone.Add(key);
+                foreach (var key in gone)
+                    enmitiesAgainstPlayers.Remove(key);
             }
 
             if (!hasEnmityListBeenUpdated || enmitiesAgainstPlayers.Count <= 0)

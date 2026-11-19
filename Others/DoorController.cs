@@ -1,4 +1,7 @@
 using System.Collections;
+using System.Collections.Generic;
+using Characters;
+using Managers;
 using UnityEngine;
 
 public class DoorController : MonoBehaviour
@@ -19,20 +22,36 @@ public class DoorController : MonoBehaviour
 
     [SerializeField] private float rotationSpeedInDegrees = 120f;
 
+    [Tooltip("The doors stay locked until every enemy in this list is dead.")]
+    [SerializeField] private List<Enemy> guardians = new List<Enemy>();
+    [SerializeField] private string lockedMessage = "문을 지키는 해골 전사를 모두 처치해야 합니다.";
+    [SerializeField] private string unlockedMessage = "보스 방의 문이 열렸습니다.";
+
     private Coroutine doorsOpeningOrClosingRoutine;
 
     private Vector3 leftDoorInitialAngles;
     private Vector3 rightDoorInitialAngles;
     private float leftDoorEulerY;
 
+    public bool IsUnlocked => guardians.TrueForAll(guardian => !guardian || guardian.IsDead);
+
     private void Start()
     {
-        doorOpeningTrigger.ActionOnTriggerEnter = TryOpeningDoors;
+        doorOpeningTrigger.ActionOnTriggerEnter = OnPlayerReachedDoors;
         doorClosingTrigger.ActionOnTriggerEnter = TryClosingDoors;
 
         leftDoorInitialAngles = leftDoorTransform.rotation.eulerAngles;
         rightDoorInitialAngles = rightDoorTransform.rotation.eulerAngles;
         leftDoorEulerY = leftDoorInitialAngles.y;
+
+        GameManager.Instance.EnemyDied += OnEnemyDied;
+    }
+
+    private void OnDestroy()
+    {
+        var gameManager = GameManager.ExistingInstance;
+        if (gameManager)
+            gameManager.EnemyDied -= OnEnemyDied;
     }
 
     private void OnDisable()
@@ -40,6 +59,26 @@ public class DoorController : MonoBehaviour
         if (doorsOpeningOrClosingRoutine != null)
             StopCoroutine(doorsOpeningOrClosingRoutine);
         doorsOpeningOrClosingRoutine = null;
+    }
+
+    private void OnEnemyDied(Enemy enemy)
+    {
+        if (!guardians.Contains(enemy) || !IsUnlocked)
+            return;
+
+        GameManager.Instance.ShowMessage(unlockedMessage);
+        TryOpeningDoors();
+    }
+
+    private void OnPlayerReachedDoors()
+    {
+        if (!IsUnlocked)
+        {
+            GameManager.Instance.ShowMessage(lockedMessage);
+            return;
+        }
+
+        TryOpeningDoors();
     }
 
     private void TryOpeningDoors()
@@ -52,6 +91,7 @@ public class DoorController : MonoBehaviour
             StopCoroutine(doorsOpeningOrClosingRoutine);
         doorsOpeningOrClosingRoutine = StartCoroutine(OpenDoors());
     }
+
     private void TryClosingDoors()
     {
         if (doorsState == State.Closed)

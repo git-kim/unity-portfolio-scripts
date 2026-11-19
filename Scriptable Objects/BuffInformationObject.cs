@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections.Generic;
 using System;
 using Enums;
@@ -22,7 +22,7 @@ public class BuffInformationObject : ScriptableObject
     public string buffName;
     public BuffType type;
     public float effectTime;
-    public string spriteName;
+    public Sprite icon;
     public string description;
     public GameObject indicatorPrefab;
 }

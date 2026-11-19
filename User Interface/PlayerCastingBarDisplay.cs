@@ -1,57 +1,43 @@
-﻿using Characters;
+using Characters;
 using Characters.Handlers;
-using System;
-using System.Linq;
+using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace UserInterface
 {
     public class PlayerCastingBarDisplay : CastingBarDisplay
     {
+        [SerializeField] private CanvasGroup castingBarPanel;
+        [SerializeField] private Image castingBarActionIcon;
+        [SerializeField] private ProgressBar castingBar;
+        [SerializeField] private TMP_Text timeLabel;
+        [SerializeField] private UiFade timeLabelFade;
+
         private CharacterActionHandler playerActionHandler;
         private ActionButtons actionButtons;
-        private UIPanel castingBarPanel;
-        private UISprite actionIconSprite, castingBarActionIconSprite;
-        private UIProgressBar castingBar;
-        private UILabel timeLabel;
-        private TweenAlpha timeLabelTween;
         private bool shouldShowCastingBar = false;
-        public bool IsShown => Math.Abs(castingBarPanel.alpha - 1f) < float.Epsilon;
+        public bool IsShown => Mathf.Approximately(castingBarPanel.alpha, 1f);
         private float castTime, remainingCastTime;
-
-        private void Awake()
-        {
-            foreach (UISprite sprite in gameObject.GetComponentsInChildren<UISprite>().Where(sprite => sprite.name.Contains("Icon")))
-            {
-                castingBarActionIconSprite = sprite;
-                break;
-            }
-
-            castingBarPanel = gameObject.GetComponentInParent<UIPanel>();
-            castingBar = gameObject.GetComponent<UIProgressBar>();
-            timeLabel = gameObject.GetComponentInChildren<UILabel>();
-            timeLabelTween = timeLabel.GetComponent<TweenAlpha>();
-        }
 
         private void Start()
         {
-            actionButtons = FindObjectOfType<ActionButtons>();
-            playerActionHandler = FindObjectOfType<Player>().GetComponent<CharacterActionHandler>();
+            actionButtons = FindAnyObjectByType<ActionButtons>();
+            playerActionHandler = FindAnyObjectByType<Player>().GetComponent<CharacterActionHandler>();
             castingBarPanel.alpha = 0f;
         }
 
         public override void ShowCastingBar(int actionID, float castTime)
         {
-            actionIconSprite = actionButtons.GetActionIconSprite(actionID);
-            castingBarActionIconSprite.spriteName = actionIconSprite.spriteName;
-            castingBarActionIconSprite.color = actionIconSprite.color;
+            var actionIcon = actionButtons.GetActionIcon(actionID);
+            castingBarActionIcon.sprite = actionIcon.sprite;
+            castingBarActionIcon.color = actionIcon.color;
 
             this.castTime = remainingCastTime = castTime;
-            castingBar.value = 1f;
+            castingBar.Value = 1f;
             timeLabel.text = playerActionHandler.VisibleGlobalCoolDownTime.ToString("0.0");
 
-            timeLabelTween.ResetToBeginning();
-            timeLabelTween.enabled = false;
+            timeLabelFade.ResetToBeginning();
 
             shouldShowCastingBar = true;
             castingBarPanel.alpha = 1f;
@@ -60,8 +46,7 @@ namespace UserInterface
         public override void StopShowingCastingBar()
         {
             timeLabel.text = "중단";
-            timeLabelTween.enabled = true;
-            timeLabelTween.PlayForward();
+            timeLabelFade.Play();
         }
 
         private void HideCastingBar()
@@ -74,7 +59,7 @@ namespace UserInterface
         private void Update()
         {
             if (!shouldShowCastingBar) return;
-            if (!timeLabelTween.enabled)
+            if (!timeLabelFade.IsPlaying)
             {
                 if (!playerActionHandler.IsCasting)
                 {
@@ -83,12 +68,12 @@ namespace UserInterface
                 else
                 {
                     remainingCastTime = Mathf.Max(0f, remainingCastTime - Time.deltaTime);
-                    castingBar.value = (castTime - remainingCastTime) / castTime;
+                    castingBar.Value = (castTime - remainingCastTime) / castTime;
                 }
 
                 timeLabel.text = playerActionHandler.VisibleGlobalCoolDownTime.ToString("0.0");
             }
-            else castingBar.value = 0f;
+            else castingBar.Value = 0f;
         }
     }
 }

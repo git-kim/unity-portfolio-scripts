@@ -1,7 +1,9 @@
-﻿using Characters;
+using Characters;
 using Managers;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace UserInterface
 {
@@ -17,8 +19,9 @@ namespace UserInterface
         private readonly List<GameObject> hPDownOverTimeObjInUse = new List<GameObject>();
         private int listSize;
         private Transform enemyTransform;
-        private Transform thisTransform;
-        private Camera mainCamera, nGUICamera;
+        private RectTransform thisTransform;
+        private RectTransform parentTransform;
+        private Camera mainCamera;
         private GameObject enemyObject;
         private Vector3 offsetVector;
         private Vector3 hPChangeObjectSpawnLocalPosition;
@@ -30,7 +33,8 @@ namespace UserInterface
         private void Awake()
         {
             objectPoolManagerInstance = ObjectPoolManager.Instance;
-            thisTransform = gameObject.transform;
+            thisTransform = (RectTransform)transform;
+            parentTransform = (RectTransform)thisTransform.parent;
 
             hPChangeObjectSpawnLocalPosition = new Vector3(0f, 35f, 0f);
             hPChangeOverTimeObjectSpawnLocalPosition = new Vector3(0f, 20f, 0f);
@@ -38,58 +42,44 @@ namespace UserInterface
             buffOffObjectSpawnLocalPosition = new Vector3(0f, 50f, 0f);
         }
 
+        public void Initialize(Enemy enemy, CharacterController characterController)
+        {
+            enemyObject = enemy.gameObject;
+            enemyTransform = enemy.transform;
+            offsetVector = enemyTransform.lossyScale.y * characterController.height * 0.5f * Vector3.up;
+        }
+
         private void Start()
         {
             buffs = GameManager.Instance.Buffs;
-
-            var enemy = FindObjectOfType<Enemy>();
-            enemyObject = enemy.gameObject;
-            enemyTransform = enemy.transform;
-            offsetVector = enemyTransform.lossyScale.y * enemy.GetComponent<CharacterController>().height * 0.5f * Vector3.up;
-            //enemyActionCommands = enemy.ActionCommands;
             mainCamera = Camera.main;
-            nGUICamera = GameObject.Find("UI Root").GetComponentInChildren<Camera>();
+        }
+
+        private GameObject Spawn(string poolName, Vector3 localPosition)
+        {
+            var obj = objectPoolManagerInstance.SpawnObjectFromPool(poolName, Vector3.zero, Quaternion.identity, false);
+            obj.transform.SetParent(thisTransform, false);
+            obj.transform.localScale = Vector3.one;
+            obj.transform.localPosition = localPosition;
+            return obj;
         }
 
         public void ShowBuffEnd(int buffIndex)
         {
-            var obj = objectPoolManagerInstance.SpawnObjectFromPool("BuffOffEnemy", Vector3.zero, Quaternion.identity, false);
-            obj.transform.SetParent(gameObject.transform, false);
-            obj.transform.localScale = Vector3.one;
-            obj.transform.localPosition = buffOffObjectSpawnLocalPosition;
-
-            var objSprite = obj.GetComponentInChildren<UISprite>(true);
-            objSprite.spriteName = buffs[buffIndex].spriteName;
-            objSprite.alpha = 1f;
-
-            var objLabel = obj.GetComponentInChildren<UILabel>(true);
-            objLabel.alpha = 1f;
-            objLabel.text = "- " + buffs[buffIndex].buffName;
-
+            var obj = Spawn("BuffOffEnemy", buffOffObjectSpawnLocalPosition);
+            obj.GetComponentInChildren<Image>(true).sprite = buffs[buffIndex].icon;
+            obj.GetComponentInChildren<TMP_Text>(true).text = "- " + buffs[buffIndex].buffName;
             buffEndObjInUse.Add(obj);
-
             obj.SetActive(true);
         }
 
         public void ShowBuffStart(int buffIndex, float effectTime)
         {
-            var obj = objectPoolManagerInstance.SpawnObjectFromPool("DebuffOnEnemy", Vector3.zero, Quaternion.identity, false);
+            var obj = Spawn("DebuffOnEnemy", buffOnObjectSpawnLocalPosition);
             // 참고: BuffOnEnemy라는 prefab은 만들지 않았다.
-
-            obj.transform.SetParent(gameObject.transform, false);
-            obj.transform.localScale = Vector3.one;
-            obj.transform.localPosition = buffOnObjectSpawnLocalPosition;
-
-            var objSprite = obj.GetComponentInChildren<UISprite>(true);
-            objSprite.spriteName = buffs[buffIndex].spriteName;
-            objSprite.alpha = 1f;
-
-            var objLabel = obj.GetComponentInChildren<UILabel>(true);
-            objLabel.alpha = 1f;
-            objLabel.text = "+ " + buffs[buffIndex].buffName;
-
+            obj.GetComponentInChildren<Image>(true).sprite = buffs[buffIndex].icon;
+            obj.GetComponentInChildren<TMP_Text>(true).text = "+ " + buffs[buffIndex].buffName;
             buffStartObjInUse.Add(obj);
-
             obj.SetActive(true);
         }
 
@@ -98,19 +88,11 @@ namespace UserInterface
             if (!isDecrement) return;
             // 참고: 회복 prefab은 만들지 않았다.
 
-            var obj = objectPoolManagerInstance.SpawnObjectFromPool("DamageEnemy", Vector3.zero, Quaternion.identity, false);
-            obj.transform.SetParent(gameObject.transform, false);
-            obj.transform.localScale = Vector3.one;
-            obj.transform.localPosition = hPChangeObjectSpawnLocalPosition;
-
-            var objLabels = obj.GetComponentsInChildren<UILabel>(true);
-            objLabels[0].alpha = 1f;
+            var obj = Spawn("DamageEnemy", hPChangeObjectSpawnLocalPosition);
+            var objLabels = obj.GetComponentsInChildren<TMP_Text>(true);
             objLabels[0].text = actionName ?? "";
-            objLabels[1].alpha = 1f;
             objLabels[1].text = change.ToString();
-
             hPDownObjInUse.Add(obj);
-
             obj.SetActive(true);
         }
 
@@ -119,30 +101,35 @@ namespace UserInterface
             if (!isDecrement) return;
             // 참고: 회복 prefab은 만들지 않았다.
 
-            var obj = objectPoolManagerInstance.SpawnObjectFromPool("DamageOverTimeEnemy", Vector3.zero, Quaternion.identity, false);
-            obj.transform.SetParent(gameObject.transform, false);
-            obj.transform.localScale = Vector3.one;
-            obj.transform.localPosition = hPChangeOverTimeObjectSpawnLocalPosition;
-
-            var objLabel = obj.GetComponentInChildren<UILabel>(true);
-            objLabel.alpha = 1f;
-            objLabel.text = change.ToString();
-
+            var obj = Spawn("DamageOverTimeEnemy", hPChangeOverTimeObjectSpawnLocalPosition);
+            obj.GetComponentInChildren<TMP_Text>(true).text = change.ToString();
             hPDownOverTimeObjInUse.Add(obj);
-
             obj.SetActive(true);
         }
 
-        private void Update()
+        private void LateUpdate()
         {
-            if (!enemyObject.activeSelf) return;
+            if (!enemyObject || !enemyObject.activeSelf) return;
 
             UpdateList(buffEndObjInUse, false);
             UpdateList(buffStartObjInUse, true);
             UpdateList(hPDownObjInUse, true);
             UpdateList(hPDownOverTimeObjInUse, false);
 
-            thisTransform.OverlayPosition(enemyTransform.position + offsetVector, mainCamera, nGUICamera);
+            FollowEnemyOnScreen();
+        }
+
+        private void FollowEnemyOnScreen()
+        {
+            var screenPoint = mainCamera.WorldToScreenPoint(enemyTransform.position + offsetVector);
+            if (screenPoint.z < 0f) // behind the camera
+            {
+                thisTransform.anchoredPosition = new Vector2(-100000f, -100000f);
+                return;
+            }
+
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(parentTransform, screenPoint, null, out var localPoint);
+            thisTransform.localPosition = localPoint;
         }
 
         public void RemoveAllDisplayingBuffs()

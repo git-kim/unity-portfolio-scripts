@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using UnityEngine;
 using Characters.Handlers;
 using Characters.StatisticsScripts;
@@ -40,7 +40,7 @@ namespace ObjectPool
 
         private void Awake()
         {
-            spawner = FindObjectOfType<FireballSpawner>();
+            spawner = FindAnyObjectByType<FireballSpawner>();
 
             if (!(muzzleParticle == null))
             {
@@ -97,7 +97,7 @@ namespace ObjectPool
             this.actionName = actionName;
         }
 
-        private void FixedUpdate()
+        private void Update()
         {
             if (impactParticle.activeSelf) return;
 

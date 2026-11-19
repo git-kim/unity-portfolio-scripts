@@ -1,20 +1,21 @@
-﻿using UnityEngine;
+using TMPro;
+using UnityEngine;
 
 namespace UserInterface
 {
     public class HitAndManaPointsDisplay : MonoBehaviour
     {
-        [SerializeField] private UIProgressBar hitPointsBar;
-        [SerializeField] private UIProgressBar manaPointsBar;
-        [SerializeField] private UILabel hitPointsDigitsLabel;
-        [SerializeField] private UILabel manaPointsDigitsLabel;
+        [SerializeField] private ProgressBar hitPointsBar;
+        [SerializeField] private ProgressBar manaPointsBar;
+        [SerializeField] private TMP_Text hitPointsDigitsLabel;
+        [SerializeField] private TMP_Text manaPointsDigitsLabel;
 
         public void UpdateHitPointsBar(int currentPoints, int maximumPoints)
         {
             if (!hitPointsBar)
                 return;
 
-            hitPointsBar.Set((float)currentPoints / maximumPoints, false);
+            hitPointsBar.Value = (float)currentPoints / maximumPoints;
         }
 
         public void UpdateHitPointsText(int currentPoints)
@@ -30,7 +31,7 @@ namespace UserInterface
             if (!manaPointsBar)
                 return;
 
-            manaPointsBar.Set((float)currentPoints / maximumPoints, false);
+            manaPointsBar.Value = (float)currentPoints / maximumPoints;
         }
 
         public void UpdateManaPointsText(int currentPoints)

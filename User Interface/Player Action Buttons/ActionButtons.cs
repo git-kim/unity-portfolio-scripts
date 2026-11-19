@@ -1,7 +1,8 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using ObserverPattern;
+using UnityEngine.UI;
 
 public class ActionButtons : Subject, IEnumerable<ActionButton>
 {
@@ -37,9 +38,9 @@ public class ActionButtons : Subject, IEnumerable<ActionButton>
         Notify2();
     }
 
-    public UISprite GetActionIconSprite(int actionID)
+    public Image GetActionIcon(int actionID)
     {
-        return buttons[actionID].iconSprite;
+        return buttons[actionID].icon;
     }
 
     IEnumerator<ActionButton> IEnumerable<ActionButton>.GetEnumerator()

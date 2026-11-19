@@ -1,18 +1,20 @@
-﻿using Characters.Handlers;
+using Characters.Handlers;
 using Characters.StatisticsScripts;
 using Enums;
 using Managers;
 using System.Collections;
 using System.Linq;
+using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
+using UserInterface;
 
 public class OffGlobalCoolDownActionButton : ActionButton
 {
     private GameManager gameManagerInstance;
-    private UIProgressBar coolDownTimeIndicator;
+    private ProgressBar coolDownTimeIndicator;
     private DisablenessIndicator disablenessIndicator;
-    private UILabel manaPointsCostIndicator;
+    private TMP_Text manaPointsCostIndicator;
 
     private float actionCoolDownTime;
     private float currentCoolDownTime;
@@ -25,15 +27,10 @@ public class OffGlobalCoolDownActionButton : ActionButton
     private void Awake()
     {
         gameManagerInstance = GameManager.Instance;
-        coolDownTimeIndicator = GetComponentInChildren<UIProgressBar>(true);
+        coolDownTimeIndicator = GetComponentInChildren<ProgressBar>(true);
         disablenessIndicator = GetComponentInChildren<DisablenessIndicator>(true);
-
-        foreach (var indicator in GetComponentsInChildren<UILabel>(true)
-                     .Where(indicator => indicator.name.Contains("MP")))
-        {
-            manaPointsCostIndicator = indicator;
-            break;
-        }
+        manaPointsCostIndicator = GetComponentsInChildren<TMP_Text>(true)
+            .FirstOrDefault(indicator => indicator.name.Contains("MP"));
 
         coolDownCoroutine = null;
     }
@@ -50,9 +47,9 @@ public class OffGlobalCoolDownActionButton : ActionButton
     public sealed override void React()
     {
         if (currentCoolDownTime > 0f)
-            coolDownTimeIndicator.Set(currentCoolDownTime / actionCoolDownTime, false);
+            coolDownTimeIndicator.Value = currentCoolDownTime / actionCoolDownTime;
         else
-            coolDownTimeIndicator.Set(0f, false);
+            coolDownTimeIndicator.Value = 0f;
 
         if ((playerActionHandler.VisibleGlobalCoolDownTime > 0f && !isUsableDuringGlobalCoolDown)
             || gameManagerInstance.State != GameState.Running
@@ -70,18 +67,18 @@ public class OffGlobalCoolDownActionButton : ActionButton
         // Check Mana Points
         if (manaPointsCost > 0 && playerActionHandler.Stats[Stat.ManaPoints] < manaPointsCost)
         {
-            manaPointsCostIndicator.effectColor = UnusablenessColor;
+            manaPointsCostIndicator.outlineColor = UnusablenessColor;
             return;
         }
 
         // Check Distance
         if (sqrRange > 0 && playerActionHandler.SqrDistanceFromCurrentTarget > sqrRange)
         {
-            manaPointsCostIndicator.effectColor = UnusablenessColor;
+            manaPointsCostIndicator.outlineColor = UnusablenessColor;
             return;
         }
 
-        manaPointsCostIndicator.effectColor = UsablenessColor;
+        manaPointsCostIndicator.outlineColor = UsablenessColor;
     }
 
     public void StartCoolDown()

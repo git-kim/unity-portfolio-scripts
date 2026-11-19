@@ -1,17 +1,23 @@
-﻿using UnityEngine;
+using UnityEngine;
 using ObserverPattern;
 using UnityEngine.Events;
 using Characters.Handlers;
 using System;
+using TMPro;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
+using UserInterface;
 
-public abstract class ActionButton : MonoBehaviour, IObserver
+public abstract class ActionButton : MonoBehaviour, IObserver, IPointerDownHandler
 {
     protected static Color UsablenessColor = new Color(0x00 / 255f, 0x6D / 255f, 0xA4 / 255f);
     protected static Color UnusablenessColor = new Color(0xA4 / 255f, 0x00 / 255f, 0x03 / 255f);
 
     public int actionID;
-    public UISprite iconSprite;
-    [SerializeField] private UILabel manaPointsCostLabel;
+    public Image icon;
+    [SerializeField] private TMP_Text manaPointsCostLabel;
+    [SerializeField] private KeyCode keyCode = KeyCode.None;
+    [SerializeField] private UiFade clickEffect;
 
     [NonSerialized] protected PlayerActionHandler playerActionHandler;
     private UnityAction onPressed;
@@ -30,10 +36,23 @@ public abstract class ActionButton : MonoBehaviour, IObserver
         sqrRange = Mathf.Pow(characterAction.range, 2f);
     }
 
-    public void OnPress(bool state)
+    protected virtual void Update()
     {
-        if (state)
-            onPressed?.Invoke();
+        if (keyCode != KeyCode.None && Input.GetKeyDown(keyCode))
+            Press();
+    }
+
+    public void OnPointerDown(PointerEventData eventData)
+    {
+        if (eventData.button == PointerEventData.InputButton.Left)
+            Press();
+    }
+
+    private void Press()
+    {
+        if (clickEffect)
+            clickEffect.Play();
+        onPressed?.Invoke();
     }
 
     public abstract void React();

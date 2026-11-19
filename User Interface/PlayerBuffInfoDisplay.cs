@@ -1,6 +1,7 @@
-﻿using Characters;
+using Characters;
 using Managers;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 
 namespace UserInterface
@@ -12,9 +13,9 @@ namespace UserInterface
             public readonly int Index;
             public readonly GameObject Prefab;
             public float Time;
-            public readonly UILabel TimeLabel;
+            public readonly TMP_Text TimeLabel;
 
-            public BuffInfoObj(int index, GameObject prefab, UILabel timeLabel)
+            public BuffInfoObj(int index, GameObject prefab, TMP_Text timeLabel)
             {
                 Index = index;
                 Prefab = prefab;
@@ -22,22 +23,16 @@ namespace UserInterface
             }
         }
 
+        [SerializeField] private float cellWidth = 15f; // was the NGUI UIGrid cell width
+
         private Player player;
         private BuffInformationList buffs;
         private readonly List<BuffInfoObj> currentActiveBuffs = new List<BuffInfoObj>();
         private readonly List<BuffInfoObj> availableBuffs = new List<BuffInfoObj>();
-        private UIGrid displayGrid;
-        // private int maxDisplayableBuffs; // not used
-
-        private void Awake()
-        {
-            displayGrid = gameObject.GetComponent<UIGrid>();
-            // maxDisplayableBuffs = displayGrid.maxPerLine;
-        }
 
         private void Start()
         {
-            player = FindObjectOfType<Player>();
+            player = FindAnyObjectByType<Player>();
             buffs = GameManager.Instance.Buffs;
             var count = buffs.Count;
 
@@ -48,11 +43,11 @@ namespace UserInterface
                 var prefab = Instantiate(buff.indicatorPrefab, gameObject.transform, false);
                 prefab.SetActive(false);
 
-                availableBuffs.Add(new BuffInfoObj(i, prefab, prefab.GetComponentInChildren<UILabel>()));
+                availableBuffs.Add(new BuffInfoObj(i, prefab, prefab.GetComponentInChildren<TMP_Text>()));
             }
         }
 
-        private void FixedUpdate()
+        private void Update()
         {
             var listSize = currentActiveBuffs.Count;
             if (listSize == 0)
@@ -93,7 +88,7 @@ namespace UserInterface
                 buffInfoObj.TimeLabel.text = effectTime.ToString();
                 buffInfoObj.Prefab.SetActive(true);
                 currentActiveBuffs.Add(buffInfoObj);
-                displayGrid.Reposition();
+                Reposition();
             }
         }
 
@@ -105,7 +100,7 @@ namespace UserInterface
                 currentActiveBuffs.Remove(buff);
             }
 
-            displayGrid.Reposition();
+            Reposition();
         }
 
         public void RemoveAllDisplayingBuffs()
@@ -117,6 +112,13 @@ namespace UserInterface
                 currentActiveBuffs[i].Prefab.SetActive(false);
                 currentActiveBuffs.RemoveAt(i);
             }
+        }
+
+        // Lays active buff icons out left to right, as NGUI's UIGrid.Reposition did.
+        private void Reposition()
+        {
+            for (var i = 0; i < currentActiveBuffs.Count; ++i)
+                currentActiveBuffs[i].Prefab.transform.localPosition = new Vector3(i * cellWidth, 0f, 0f);
         }
     }
 }
