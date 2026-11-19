@@ -5,6 +5,7 @@ using Characters.Handlers;
 using System;
 using TMPro;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 using UserInterface;
 
@@ -16,7 +17,7 @@ public abstract class ActionButton : MonoBehaviour, IObserver, IPointerDownHandl
     public int actionID;
     public Image icon;
     [SerializeField] private TMP_Text manaPointsCostLabel;
-    [SerializeField] private KeyCode keyCode = KeyCode.None;
+    [SerializeField] private Key key = Key.None;
     [SerializeField] private UiFade clickEffect;
 
     [NonSerialized] protected PlayerActionHandler playerActionHandler;
@@ -38,7 +39,7 @@ public abstract class ActionButton : MonoBehaviour, IObserver, IPointerDownHandl
 
     protected virtual void Update()
     {
-        if (keyCode != KeyCode.None && Input.GetKeyDown(keyCode))
+        if (key != Key.None && Keyboard.current != null && Keyboard.current[key].wasPressedThisFrame)
             Press();
     }
 

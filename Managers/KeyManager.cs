@@ -1,5 +1,7 @@
-﻿using Enums;
+using Enums;
 using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.Controls;
 
 namespace Managers
 {
@@ -7,14 +9,12 @@ namespace Managers
     {
         private KeyManager() { }
 
-        private const string VAxisName = "Vertical";
-        private const string HAxisName = "Horizontal";
-        private const string MouseWheelName = "Mouse ScrollWheel";
+        // The old Input Manager axis settings (Horizontal/Vertical) so movement feels the same.
+        private const float AxisSensitivity = 3f;
+        private const float AxisGravity = 20f;
 
-        private const string JumpName = "Jump";
-
-        private const string BattlePoseName = "Battle Pose";
-        private const string WalkOrRunName = "WalkOrRun";
+        // Raw smoothed axes, before the diagonal-release handling below.
+        private float axisV, axisH;
 
         // These are used to rotate the player character properly.
         private float tempV, tempH;
@@ -37,6 +37,7 @@ namespace Managers
         private void ResetValues()
         {
             V = H = MouseWheel = 0f;
+            axisV = axisH = 0f;
             tempV = tempH = 0f;
             delayToResetVH = 0.06f;
             delayToResetJump = 0.2f;
@@ -59,8 +60,13 @@ namespace Managers
             //    return;
             //}
 
-            V = Input.GetAxis(VAxisName);
-            H = Input.GetAxis(HAxisName);
+            var keyboard = Keyboard.current;
+            var mouse = Mouse.current;
+
+            axisV = SmoothAxis(axisV, Direction(keyboard?.wKey, keyboard?.upArrowKey, keyboard?.sKey, keyboard?.downArrowKey));
+            axisH = SmoothAxis(axisH, Direction(keyboard?.dKey, keyboard?.rightArrowKey, keyboard?.aKey, keyboard?.leftArrowKey));
+            V = axisV;
+            H = axisH;
             if (Mathf.Abs(V) > 0.001f && Mathf.Abs(H) > 0.001f)
             {
                 tempV = V;
@@ -93,13 +99,13 @@ namespace Managers
                 delayToResetVH = 0.06f;
             }
 
-            MouseWheel = Input.GetAxis(MouseWheelName);
-            RMBDown = Input.GetMouseButtonDown(1);
-            RMBUp = Input.GetMouseButtonUp(1);
+            MouseWheel = mouse == null ? 0f : mouse.scroll.ReadValue().y * 0.1f; // 0.1 per notch, as the old axis gave
+            RMBDown = mouse != null && mouse.rightButton.wasPressedThisFrame;
+            RMBUp = mouse != null && mouse.rightButton.wasReleasedThisFrame;
 
-            LMBDown = Input.GetMouseButtonDown(0);
+            LMBDown = mouse != null && mouse.leftButton.wasPressedThisFrame;
 
-            var jump = Input.GetButtonDown(JumpName);
+            var jump = keyboard != null && keyboard.spaceKey.wasPressedThisFrame;
             if (!jump && Jump && delayToResetJump > 0f)
             {
                 delayToResetJump -= Time.deltaTime;
@@ -110,10 +116,27 @@ namespace Managers
                 delayToResetJump = 0.2f;
             }
 
-            BattlePose = Input.GetButtonDown(BattlePoseName); // Battle Pose Toggle
+            BattlePose = keyboard != null && keyboard.zKey.wasPressedThisFrame; // Battle Pose Toggle
 
-            if (Input.GetButtonDown(WalkOrRunName))
+            if (keyboard != null && keyboard.slashKey.wasPressedThisFrame)
                 LocomotionMode ^= LocomotionMode.WalkAndRun;
+        }
+
+        private static float Direction(KeyControl positive, KeyControl altPositive, KeyControl negative, KeyControl altNegative)
+        {
+            var value = 0f;
+            if (positive != null && (positive.isPressed || altPositive.isPressed)) value += 1f;
+            if (negative != null && (negative.isPressed || altNegative.isPressed)) value -= 1f;
+            return value;
+        }
+
+        // Mirrors Input.GetAxis with snap on: reversing jumps to zero, pressing ramps up, releasing falls back fast.
+        private static float SmoothAxis(float current, float target)
+        {
+            if (target != 0f && current * target < 0f)
+                current = 0f;
+            var speed = target == 0f ? AxisGravity : AxisSensitivity;
+            return Mathf.MoveTowards(current, target, speed * Time.deltaTime);
         }
     }
 }

@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 using Unity.Cinemachine;
 using System.Runtime.InteropServices;
 using Managers;
@@ -51,12 +52,13 @@ public class PlayerCameraController : MonoBehaviour
             Cursor.visible = true;
         }
 
-        if (isRotating)
+        if (isRotating && Mouse.current != null)
         {
-            var horizontal = orbitalFollow.HorizontalAxis.Value + Input.GetAxis("Mouse X") * HorizontalSpeed;
+            var delta = Mouse.current.delta.ReadValue() * 0.1f; // the old Mouse X/Y axes used sensitivity 0.1
+            var horizontal = orbitalFollow.HorizontalAxis.Value + delta.x * HorizontalSpeed;
             orbitalFollow.HorizontalAxis.Value = Mathf.Repeat(horizontal + 180f, 360f) - 180f;
             orbitalFollow.VerticalAxis.Value =
-                Mathf.Clamp01(orbitalFollow.VerticalAxis.Value - Input.GetAxis("Mouse Y") * VerticalSpeed);
+                Mathf.Clamp01(orbitalFollow.VerticalAxis.Value - delta.y * VerticalSpeed);
         }
 
         mouseWheelValue = KeyManager.Instance.MouseWheel;

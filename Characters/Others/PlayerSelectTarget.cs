@@ -2,6 +2,7 @@ using Characters;
 using Managers;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 
 public class PlayerSelectTarget : MonoBehaviour
 {
@@ -29,7 +30,7 @@ public class PlayerSelectTarget : MonoBehaviour
         if (EventSystem.current && EventSystem.current.IsPointerOverGameObject()) // clicked on UI
             return;
 
-        ray = mainCamera.ScreenPointToRay(Input.mousePosition);
+        ray = mainCamera.ScreenPointToRay(Mouse.current.position.ReadValue());
 
         if (Physics.SphereCast(ray, 0.8f, out hit, 34f, 1 << 11)) // 11: Enemy
         {
