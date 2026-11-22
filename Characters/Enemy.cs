@@ -176,6 +176,8 @@ namespace Characters
                 Utilities.GetRandomFloatFromSineDistribution(0.96f, 1.04f));
             target.DecreaseStat(Stat.HitPoints, effectiveDamage);
             target.ShowHitPointsChange(effectiveDamage, true, actionName);
+            if (isMelee)
+                AudioManager.Instance.Play(Sfx.MeleeHit, target.transform.position);
         }
 
         private void Start()
@@ -238,7 +240,8 @@ namespace Characters
         private void Die()
         {
             Animator.SetInteger(MovementMode, 0);
-            Animator.SetTrigger(Dead);
+            Animator.SetBool(Dead, true); // a bool, not a trigger: a layer mid-transition must still see it
+            AudioManager.Instance.Play(isBoss ? Sfx.BossDeath : Sfx.SkeletonCollapse, Transform.position);
             GameManager.Instance.EnemiesAlive.Remove(Identifier);
             navMeshAgent.enabled = false;
             hitPointsDisplay.SetActive(false);
@@ -328,6 +331,7 @@ namespace Characters
                     lastAttackTime = Time.time;
                     Animator.SetInteger(MovementMode, 0);
                     Animator.SetTrigger(Attack);
+                    AudioManager.Instance.Play(Sfx.SwordSwing, Transform.position);
                     DealDamage(currentTargetStatChangeHandler, Stats[Stat.MeleeAttack], true, null);
                 }
             }

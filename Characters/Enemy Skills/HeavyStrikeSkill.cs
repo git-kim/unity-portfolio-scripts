@@ -1,6 +1,7 @@
 using System.Collections;
 using Characters.Handlers;
 using Characters.StatisticsScripts;
+using Managers;
 using UnityEngine;
 
 namespace Characters.EnemySkills
@@ -21,6 +22,7 @@ namespace Characters.EnemySkills
             Animator.SetTrigger(SkillTrigger);
 
             yield return new WaitForSeconds(windUpTime);
+            AudioManager.Instance.Play(Sfx.HeavyStrike, Owner.transform.position);
 
             if (target && SqrHorizontalDistance(target.position, Owner.transform.position) <= reach * reach)
             {

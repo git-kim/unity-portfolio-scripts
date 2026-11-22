@@ -62,6 +62,7 @@ namespace Characters.CharacterActionCommands
                     value = actorStats[Stat.HitPointsRestorability]
                 });
 
+            AudioManager.Instance.Play(Sfx.Heal, ActorTransform.position);
             if (particleEffectName != ParticleEffectName.None)
                 NonPooledParticleEffectManager.Instance.PlayParticleEffect(particleEffectName, targetTransform, localPosition, toDirection, localScale, 1f, shouldEffectFollowTarget);
 

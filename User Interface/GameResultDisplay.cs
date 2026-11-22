@@ -27,6 +27,8 @@ namespace UserInterface
         private void Awake()
         {
             panel.SetActive(false);
+            retryButton.onClick.AddListener(PlayClick);
+            quitButton.onClick.AddListener(PlayClick);
             retryButton.onClick.AddListener(Retry);
             quitButton.onClick.AddListener(Quit);
         }
@@ -58,6 +60,8 @@ namespace UserInterface
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
         }
+
+        private static void PlayClick() => AudioManager.Instance.Play(Sfx.UiClick);
 
         private static void Retry()
         {

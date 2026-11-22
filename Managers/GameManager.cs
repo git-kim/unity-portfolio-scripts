@@ -19,6 +19,17 @@ namespace Managers
         private readonly HashSet<Enemy> engagedEnemies = new HashSet<Enemy>();
         public bool IsInBattle => engagedEnemies.Count > 0;
 
+        public bool IsBossEngaged
+        {
+            get
+            {
+                foreach (var enemy in engagedEnemies) // no LINQ: the music reads this every frame
+                    if (enemy.IsBoss)
+                        return true;
+                return false;
+            }
+        }
+
         private ErrorMessageDisplay errorMessageDisplay;
 
         public GameState State { get; private set; } = GameState.Running;
@@ -124,6 +135,7 @@ namespace Managers
 
         public void ShowErrorMessage(int errMsgID)
         {
+            AudioManager.Instance.Play(Sfx.UiError);
             errorMessageDisplay.ShowErrorMessage(errMsgID);
         }
 

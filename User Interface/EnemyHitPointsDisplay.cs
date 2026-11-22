@@ -4,6 +4,9 @@ namespace UserInterface
 {
     public class EnemyHitPointsDisplay : HitAndManaPointsDisplay
     {
+        // The screen UI's CanvasScaler matches a 700-pixel-wide reference; the bars follow the same scale.
+        private const float ReferenceScreenWidth = 700f;
+
         private GameObject enemyGameObject;
         private Camera mainCamera;
         private Transform mainCameraTransform;
@@ -47,7 +50,8 @@ namespace UserInterface
 
         private void UpdateLocalScale()
         {
-            var tempPos = mainCamera.ScreenToWorldPoint(mainCamera.WorldToScreenPoint(thisTransform.position) + Vector3.up * heightOnScreen);
+            var screenHeight = heightOnScreen * Screen.width / ReferenceScreenWidth;
+            var tempPos = mainCamera.ScreenToWorldPoint(mainCamera.WorldToScreenPoint(thisTransform.position) + Vector3.up * screenHeight);
             thisTransform.localScale = initialLocalScale * (tempPos - thisTransform.position).magnitude;
         }
 

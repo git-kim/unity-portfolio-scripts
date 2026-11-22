@@ -38,6 +38,10 @@ namespace Characters
 
         private bool hasJumped;
 
+        // Seconds per footstep at normal running speed; scaled by the locomotion speed multiplier.
+        private const float RunStepInterval = 0.34f;
+        private float stepTimer;
+
         private Coroutine landingRoutine;
 
         private PlayerTarget currentTarget;
@@ -214,8 +218,11 @@ namespace Characters
 
         private void Locomote()
         {
-            if (!IsDead)
+            var hasControl = !IsDead && GameManager.Instance.State == GameState.Running;
+            if (hasControl)
                 SetVelocityForDesiredDirection();
+            else if (!IsDead)
+                Velocity = Vector3.zero; // all of it: a leftover fall speed alone keeps the run animation going
 
             bool hasBeenInTheAir = Animator.GetBool(InTheAir);
 
@@ -234,7 +241,7 @@ namespace Characters
 
                 if (IsOnGround)
                 {
-                    if (KeyManager.Instance.Jump && IsAbleToMove && !IsDead)
+                    if (KeyManager.Instance.Jump && IsAbleToMove && hasControl)
                     {
                         feetIKSetter.DisableFeetIK();
                         Jump();
@@ -258,6 +265,23 @@ namespace Characters
             Rotate();
             ApplyDragToVelocity();
             MoveUsingVelocity();
+            PlayFootsteps();
+        }
+
+        private void PlayFootsteps()
+        {
+            if (!IsOnGround || !IsMoving || IsDead || Animator.GetBool(InTheAir))
+            {
+                stepTimer = 0.1f; // the first step lands shortly after starting to move
+                return;
+            }
+
+            stepTimer -= Time.deltaTime;
+            if (stepTimer > 0f)
+                return;
+
+            stepTimer = RunStepInterval / Mathf.Max(0.3f, Animator.GetFloat(MovementSpeedMult));
+            AudioManager.Instance.Play(Sfx.Footstep, Transform.position);
         }
 
         private void ApplyLocomotionModeFactorsToVelocity()
@@ -379,6 +403,7 @@ namespace Characters
         private void Jump()
         {
             KeyManager.Instance.Jump = false;
+            AudioManager.Instance.Play(Sfx.Jump, Transform.position);
             Animator.SetFloat(YSpeed, InitialJumpUpSpeed);
             Animator.SetBool(InTheAir, true);
             Animator.SetInteger(LandMode, 0);
@@ -392,7 +417,10 @@ namespace Characters
                 landingRoutine = null;
             }
 
-            if (Animator.GetFloat(YSpeed) < -2.5f)
+            var hardLanding = Animator.GetFloat(YSpeed) < -2.5f;
+            AudioManager.Instance.Play(Sfx.Landing, Transform.position, hardLanding ? 1f : 0.6f);
+
+            if (hardLanding)
             {
                 Animator.SetInteger(LandMode, 1);
                 landingRoutine = StartCoroutine(
@@ -420,15 +448,20 @@ namespace Characters
             GameManager.Instance.onGameTick.RemoveListener(RegenerateStatPoints);
             GameManager.Instance.PlayersAlive.Remove(Identifier);
             StopAllCoroutines();
+            AudioManager.Instance.Play(Sfx.CharacterDeath, Transform.position);
             StartCoroutine(EndGame());
         }
 
         public void SelectTarget(GameObject gO)
         {
-            currentTargetStatChangeHandler = gO.GetComponent<StatChangeHandler>();
-            if (currentTargetStatChangeHandler.HasZeroHitPoints)
+            var targetStatChangeHandler = gO.GetComponent<StatChangeHandler>();
+            if (targetStatChangeHandler.HasZeroHitPoints)
                 return;
 
+            if (currentTarget)
+                currentTarget.TargetIndicator.SetActive(false); // the previous target loses its marker
+
+            currentTargetStatChangeHandler = targetStatChangeHandler;
             actionHandler.SetCurrentTarget(gO);
 
             currentTarget = gO.GetComponent<PlayerTarget>();

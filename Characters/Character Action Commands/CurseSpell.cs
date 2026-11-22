@@ -67,6 +67,7 @@ namespace Characters.CharacterActionCommands
                 enemy.IncreaseEnmity(actorID, 1);
             }
 
+            AudioManager.Instance.Play(Sfx.Curse, ActorTransform.position);
             if (particleEffectName != ParticleEffectName.None)
                 NonPooledParticleEffectManager.Instance.PlayParticleEffect(particleEffectName, targetTransform, localPosition, toDirection, localScale, 1f, shouldEffectFollowTarget);
 

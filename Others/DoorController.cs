@@ -75,6 +75,7 @@ public class DoorController : MonoBehaviour
         if (!IsUnlocked)
         {
             GameManager.Instance.ShowMessage(lockedMessage);
+            AudioManager.Instance.Play(Sfx.UiError);
             return;
         }
 
@@ -87,6 +88,7 @@ public class DoorController : MonoBehaviour
             return;
 
         doorsState = State.Open;
+        AudioManager.Instance.Play(Sfx.BossDoor, leftDoorTransform.position);
         if (doorsOpeningOrClosingRoutine != null)
             StopCoroutine(doorsOpeningOrClosingRoutine);
         doorsOpeningOrClosingRoutine = StartCoroutine(OpenDoors());

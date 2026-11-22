@@ -8,6 +8,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 using UserInterface;
+using Managers;
 
 public abstract class ActionButton : MonoBehaviour, IObserver, IPointerDownHandler
 {
@@ -51,6 +52,7 @@ public abstract class ActionButton : MonoBehaviour, IObserver, IPointerDownHandl
 
     private void Press()
     {
+        AudioManager.Instance.Play(Sfx.UiClick);
         if (clickEffect)
             clickEffect.Play();
         onPressed?.Invoke();

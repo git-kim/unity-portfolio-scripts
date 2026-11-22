@@ -53,6 +53,7 @@ namespace Characters.CharacterActionCommands
                     value = ActorActionHandler.Stats[Stat.LocomotionSpeed]
                 });
 
+            AudioManager.Instance.Play(Sfx.Sprint, ActorTransform.position);
             if (particleEffectName != ParticleEffectName.None)
                 NonPooledParticleEffectManager.Instance.PlayParticleEffect(
                     particleEffectName, ActorTransform, localPosition, toDirection,

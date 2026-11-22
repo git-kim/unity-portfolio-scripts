@@ -3,6 +3,7 @@ using UnityEngine.InputSystem;
 using Unity.Cinemachine;
 using System.Runtime.InteropServices;
 using Managers;
+using Enums;
 
 public class PlayerCameraController : MonoBehaviour
 {
@@ -22,11 +23,16 @@ public class PlayerCameraController : MonoBehaviour
         public int Y;
     }
 
-    [DllImport("user32.dll")] // Windows
+#if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN // user32 exists only on Windows; Web builds would throw on right-click
+    [DllImport("user32.dll")]
     private static extern bool SetCursorPos(int x, int y);
 
-    [DllImport("user32.dll")] // Windows
+    [DllImport("user32.dll")]
     private static extern bool GetCursorPos(out MousePosition mousePos);
+#else
+    private static bool SetCursorPos(int x, int y) => false;
+    private static bool GetCursorPos(out MousePosition mousePos) { mousePos = default; return false; }
+#endif
 
     void Awake()
     {
@@ -36,6 +42,14 @@ public class PlayerCameraController : MonoBehaviour
 
     void Update()
     {
+        // Once the result panel is up the camera stays put, and the cursor must be free to click its buttons.
+        if (GameManager.Instance.State != GameState.Running)
+        {
+            if (isRotating)
+                StopRotating();
+            return;
+        }
+
         if (KeyManager.Instance.RMBDown)
         {
             isRotating = true;
@@ -44,13 +58,8 @@ public class PlayerCameraController : MonoBehaviour
             Cursor.visible = false;
         }
 
-        if (KeyManager.Instance.RMBUp)
-        {
-            isRotating = false;
-            SetCursorPos(mousePosition.X, mousePosition.Y);
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-        }
+        if (KeyManager.Instance.RMBUp && isRotating)
+            StopRotating();
 
         if (isRotating && Mouse.current != null)
         {
@@ -58,7 +67,7 @@ public class PlayerCameraController : MonoBehaviour
             var horizontal = orbitalFollow.HorizontalAxis.Value + delta.x * HorizontalSpeed;
             orbitalFollow.HorizontalAxis.Value = Mathf.Repeat(horizontal + 180f, 360f) - 180f;
             orbitalFollow.VerticalAxis.Value =
-                Mathf.Clamp01(orbitalFollow.VerticalAxis.Value - delta.y * VerticalSpeed);
+                orbitalFollow.VerticalAxis.ClampValue(orbitalFollow.VerticalAxis.Value - delta.y * VerticalSpeed);
         }
 
         mouseWheelValue = KeyManager.Instance.MouseWheel;
@@ -66,7 +75,15 @@ public class PlayerCameraController : MonoBehaviour
         if (Mathf.Abs(mouseWheelValue) > 0.0078125f)
         {
             virtualMainCamera.Lens.FieldOfView =
-                Mathf.Clamp(virtualMainCamera.Lens.FieldOfView + mouseWheelValue * 20f, 20f, 80f);
+                Mathf.Clamp(virtualMainCamera.Lens.FieldOfView - mouseWheelValue * 20f, 20f, 80f); // wheel down zooms out
         }
+    }
+
+    private void StopRotating()
+    {
+        isRotating = false;
+        SetCursorPos(mousePosition.X, mousePosition.Y);
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
     }
 }

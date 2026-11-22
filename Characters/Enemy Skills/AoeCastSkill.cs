@@ -23,6 +23,7 @@ namespace Characters.EnemySkills
 
         private AoeTelegraph telegraph;
         private GameObject chargeEffect;
+        private AudioSource castSound;
 
         public float Radius => radius;
 
@@ -36,6 +37,7 @@ namespace Characters.EnemySkills
                 chargeEffect = Instantiate(chargeEffectPrefab, Owner.transform.position, Quaternion.identity, Owner.transform);
             if (Owner.CastingBar)
                 Owner.CastingBar.Show(skillName, castTime);
+            castSound = AudioManager.Instance.Play(Sfx.AreaAttackCast, center);
 
             for (var elapsed = 0f; elapsed < castTime; elapsed += Time.deltaTime)
             {
@@ -47,6 +49,8 @@ namespace Characters.EnemySkills
             Animator.SetTrigger(SkillTrigger);
             if (releaseEffectPrefab)
                 Destroy(Instantiate(releaseEffectPrefab, center, Quaternion.identity), 5f);
+            AudioManager.Instance.Stop(castSound, Sfx.AreaAttackCast);
+            AudioManager.Instance.Play(Sfx.AreaAttackBlast, center);
 
             // Copy first: a player killed by the blast removes itself from PlayersAlive.
             foreach (var player in GameManager.Instance.PlayersAlive.Values.ToList())
@@ -68,6 +72,10 @@ namespace Characters.EnemySkills
                 Destroy(telegraph.gameObject);
             if (chargeEffect)
                 Destroy(chargeEffect);
+            var audio = AudioManager.ExistingInstance; // CleanUp also runs while the scene unloads
+            if (audio)
+                audio.Stop(castSound, Sfx.AreaAttackCast);
+            castSound = null;
             if (Owner && Owner.CastingBar)
                 Owner.CastingBar.StopShowingCastingBar();
             telegraph = null;
