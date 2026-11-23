@@ -91,7 +91,7 @@ public class VideoCaptureTests
         yield return new ExitPlayMode();
 
         Assert.That(ids, Does.Contain("cleared"), events);
-        Assert.That(ids, Is.SupersetOf(new[] { "first-battle", "door-open", "boss-engaged", "aoe-cast", "aoe-dodged", "boss-down" }), events);
+        Assert.That(ids, Is.SupersetOf(new[] { "first-battle", "heal", "off-gcd", "door-open", "boss-engaged", "aoe-cast", "aoe-dodged", "boss-down" }), events);
         Assert.That(ids.Count(id => id == "skeleton-down"), Is.EqualTo(2), events);
         Assert.That(ids, Does.Not.Contain("aoe-hit"), events);
     }

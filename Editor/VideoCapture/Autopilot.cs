@@ -324,11 +324,14 @@ namespace VideoCapture
 
                 var hp = player.Stats[Stat.HitPoints];
                 var mp = player.Stats[Stat.ManaPoints];
-                if (actions.IsCasting && mp < 1200 && Time.time >= manaReadyAt)
+                // Off-GCD shows best right after an instant skill: the global cooldown is still running, and
+                // the game takes an off-GCD skill then, but not during a cast (a key pressed mid-cast is dropped).
+                if (!actions.IsCasting && actions.ActionBeingTaken == 0 && actions.InvisibleGlobalCoolDownTime == 0f
+                    && actions.VisibleGlobalCoolDownTime > 0.3f && mp < player.Stats[Stat.MaximumManaPoints] * 0.7f // after a heal, not the opening curse
+                    && Time.time >= manaReadyAt)
                 {
                     manaReadyAt = Time.time + 61f;
-                    Mark("off-gcd");
-                    yield return Tap(Key.Digit4);
+                    yield return UseSelfBuff(Key.Digit4, ManaRestoreBuff, "off-gcd");
                     continue;
                 }
                 if (actions.IsCasting || actions.VisibleGlobalCoolDownTime > 0.05f || actions.InvisibleGlobalCoolDownTime > 0f)
@@ -336,11 +339,10 @@ namespace VideoCapture
                     yield return null;
                     continue;
                 }
-                if (hp < 1500 && mp >= 700 && Time.time >= healReadyAt)
+                if (hp < player.Stats[Stat.MaximumHitPoints] * 0.9f && mp >= 700 && Time.time >= healReadyAt)
                 {
                     healReadyAt = Time.time + 10f;
-                    Note("heal");
-                    yield return Tap(Key.Digit3);
+                    yield return UseSelfBuff(Key.Digit3, HealBuff, "heal");
                 }
                 else if (!cursed && mp >= 500)
                 {
@@ -355,6 +357,25 @@ namespace VideoCapture
             Release();
             StopTracking();
             wantFast = false;
+        }
+
+        private const int HealBuff = 1, ManaRestoreBuff = 2; // buff indices PlayerActionHandler gives these skills
+
+        // Press a self-buff key and caption it only once the buff is really on.
+        private IEnumerator UseSelfBuff(Key key, int buffIndex, string id)
+        {
+            var buffs = actions.GetComponent<StatChangeHandler>();
+            yield return Tap(key);
+            for (var end = Time.time + 0.5f; Time.time < end; )
+            {
+                if (buffs.HasStatChangingEffect(buffIndex))
+                {
+                    Mark(id);
+                    yield break;
+                }
+                yield return null;
+            }
+            Note(id + " did not take effect");
         }
 
         private IEnumerator Dodge(AoeTelegraph telegraph)

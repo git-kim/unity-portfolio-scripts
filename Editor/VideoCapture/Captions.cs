@@ -30,7 +30,7 @@ namespace VideoCapture
         // {0} is the event's Detail.
         private static readonly Dictionary<string, (string ko, string en)> Lines = new()
         {
-            ["start"] = ("Unity 2022.3에서 Unity 6로 마이그레이션", "Migrated from Unity 2022.3 to Unity 6"),
+            ["start"] = ("Unity 2022.3에서 Unity 6.6로 마이그레이션", "Migrated from Unity 2022.3 to Unity 6.6"),
             ["camera"] = ("Cinemachine 3 카메라: 휠로 줌, 오른쪽 버튼 드래그로 회전", "Cinemachine 3 camera: wheel to zoom, right-drag to orbit"),
             ["walk"] = ("/ 키로 걷기와 달리기 전환", "/ toggles walking and running"),
             ["battle-pose"] = ("전투 중이 아닐 때 Z 키로 전투 자세 전환", "Z toggles the battle stance outside combat"),
@@ -39,6 +39,7 @@ namespace VideoCapture
             ["cast-cancel"] = ("캐스팅 중에 이동하면 캐스팅 중단", "Moving during a cast cancels it"),
             ["first-battle"] = ("새로 추가한 중간 몬스터: 해골 전사", "New mid-level monsters: skeleton warriors"),
             ["off-gcd"] = ("MP 회복: 글로벌 쿨다운 중에도 사용할 수 있는 능력 (오프 GCD)", "MP restore: usable during the global cooldown (off-GCD)"),
+            ["heal"] = ("HP 회복: 즉시 소량 회복한 뒤 10초 동안 지속 회복", "HP restore: a small instant heal, then healing over 10 seconds"),
             ["skeleton-down"] = ("해골 전사 처치 ({0})", "Skeleton warrior down ({0})"),
             ["target-switch"] = ("대상 전환: 바닥의 선택 표시가 새 대상으로 이동", "Target switch: the ground marker moves to the new target"),
             ["door-open"] = ("해골 전사를 모두 쓰러뜨리면 보스 방 문이 열림", "The boss door opens once both skeleton warriors fall"),
@@ -53,7 +54,7 @@ namespace VideoCapture
         };
 
         // Repeats of these say nothing new, so only the first one gets a subtitle.
-        private static readonly HashSet<string> FirstOnly = new() { "aoe-cast", "aoe-dodged", "aoe-hit", "off-gcd" };
+        private static readonly HashSet<string> FirstOnly = new() { "aoe-cast", "aoe-dodged", "aoe-hit", "off-gcd", "heal" };
 
         public static string Line(string id, string detail, bool first, bool korean)
         {
