@@ -205,7 +205,7 @@ namespace VideoCapture
             for (var i = 0; i < 5; i++) { scroll = Vector2.up; yield return Wait(0.25f); }
 
             Note("orbit");
-            yield return Orbit(360f, 2.4f);
+            yield return Orbit(360f, 2f);
 
             Mark("walk");
             yield return Tap(Key.Slash);
@@ -215,7 +215,7 @@ namespace VideoCapture
             yield return Wait(0.4f);
             Mark("battle-pose");
             yield return Tap(Key.Z);
-            yield return Wait(1.3f);
+            yield return Wait(1f);
             yield return Tap(Key.Z);
             yield return Wait(0.6f);
 
@@ -274,11 +274,13 @@ namespace VideoCapture
             yield return Wait(2.5f);
             for (var i = 0; i < 6; i++) { scroll = Vector2.down; yield return Wait(0.15f); }
             yield return Reframe(0.22f, 0.6f);
+            // The IK shot leaves the camera facing away from the boss; turn first, or it walks in through the camera.
+            yield return AlignCamera(Flat(boss.transform.position - player.transform.position).normalized, 2f);
             Note("fight boss"); // the boss is within fireball range of the pile
             yield return Fight(boss);
 
             Note("result");
-            yield return Wait(3.5f);
+            yield return Wait(2.7f);
         }
 
         private IEnumerator Fight(Enemy enemy)

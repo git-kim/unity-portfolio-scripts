@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+using Unity.Cinemachine;
+using UnityEngine;
 
 namespace UserInterface
 {
@@ -34,9 +35,15 @@ namespace UserInterface
             heightOnScreen = 30f;
         }
 
-        private void LateUpdate()
+        // Cinemachine moves the camera in LateUpdate too, in no fixed order with this script; following the
+        // camera from a plain LateUpdate lags a frame behind while it turns. This event fires after the move.
+        private void OnEnable() => CinemachineCore.CameraUpdatedEvent.AddListener(OnCameraUpdated);
+
+        private void OnDisable() => CinemachineCore.CameraUpdatedEvent.RemoveListener(OnCameraUpdated);
+
+        private void OnCameraUpdated(CinemachineBrain brain)
         {
-            if (!enemyGameObject.activeSelf)
+            if (!enemyGameObject || !enemyGameObject.activeSelf)
                 return;
 
             UpdatePosition();

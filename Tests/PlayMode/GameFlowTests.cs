@@ -98,6 +98,32 @@ public class GameFlowTests
     }
 
     [UnityTest]
+    public IEnumerator EnemyHitPointsFaceTheCameraInTheSameFrameWhileItTurns()
+    {
+        var skeleton = Skeletons[0];
+        var bar = ((Component)typeof(Enemy).GetField("hitPointsDisplay", BindingFlags.NonPublic | BindingFlags.Instance)
+            .GetValue(skeleton)).transform;
+        Teleport(Player, skeleton.transform.position + skeleton.transform.forward * 4f + Vector3.up * 0.2f);
+        yield return WaitUntil(() => bar.gameObject.activeSelf, 5f, "the skeleton's bar to show");
+
+        // The damage text follows the enemy in screen space; it must land on this frame's projection too.
+        var text = (Component)typeof(Enemy).GetField("enemyStatChangeDisplay", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(skeleton);
+        var textOffset = (Vector3)text.GetType().GetField("offsetVector", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(text);
+
+        var orbital = Object.FindAnyObjectByType<Unity.Cinemachine.CinemachineOrbitalFollow>();
+        var camera = Camera.main;
+        for (var i = 0; i < 20; i++) // turn the camera 12 degrees every frame, as a fast right-drag would
+        {
+            orbital.HorizontalAxis.Value = Mathf.Repeat(orbital.HorizontalAxis.Value + 12f + 180f, 360f) - 180f;
+            yield return null;
+            Assert.That(Quaternion.Angle(bar.rotation, camera.transform.rotation), Is.LessThan(0.01f), $"frame {i}: the bar lags the camera");
+            var expected = camera.WorldToScreenPoint(skeleton.transform.position + textOffset);
+            if (expected.z > 0f)
+                Assert.That(Vector2.Distance(text.transform.position, expected), Is.LessThan(1f), $"frame {i}: the damage text lags the camera");
+        }
+    }
+
+    [UnityTest]
     public IEnumerator DoorOpensOnlyAfterEverySkeletonDies()
     {
         var door = Object.FindAnyObjectByType<DoorController>();

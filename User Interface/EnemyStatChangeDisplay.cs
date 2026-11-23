@@ -2,6 +2,7 @@ using Characters;
 using Managers;
 using System.Collections.Generic;
 using TMPro;
+using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -21,7 +22,6 @@ namespace UserInterface
         private Transform enemyTransform;
         private RectTransform thisTransform;
         private RectTransform parentTransform;
-        private Camera mainCamera;
         private GameObject enemyObject;
         private Vector3 offsetVector;
         private Vector3 hPChangeObjectSpawnLocalPosition;
@@ -52,7 +52,6 @@ namespace UserInterface
         private void Start()
         {
             buffs = GameManager.Instance.Buffs;
-            mainCamera = Camera.main;
         }
 
         private GameObject Spawn(string poolName, Vector3 localPosition)
@@ -115,13 +114,19 @@ namespace UserInterface
             UpdateList(buffStartObjInUse, true);
             UpdateList(hPDownObjInUse, true);
             UpdateList(hPDownOverTimeObjInUse, false);
-
-            FollowEnemyOnScreen();
         }
 
-        private void FollowEnemyOnScreen()
+        // Follow the enemy only after Cinemachine has moved the camera this frame, or the text lags while it turns.
+        private void OnEnable() => CinemachineCore.CameraUpdatedEvent.AddListener(FollowEnemyOnScreen);
+
+        private void OnDisable() => CinemachineCore.CameraUpdatedEvent.RemoveListener(FollowEnemyOnScreen);
+
+        private void FollowEnemyOnScreen(CinemachineBrain brain)
         {
-            var screenPoint = mainCamera.WorldToScreenPoint(enemyTransform.position + offsetVector);
+            if (!enemyObject || !enemyObject.activeSelf) return;
+
+            // The brain may update the camera before this script's Start runs, so use the camera it just moved.
+            var screenPoint = brain.OutputCamera.WorldToScreenPoint(enemyTransform.position + offsetVector);
             if (screenPoint.z < 0f) // behind the camera
             {
                 thisTransform.anchoredPosition = new Vector2(-100000f, -100000f);
