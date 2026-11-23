@@ -25,7 +25,7 @@ public class VideoCaptureTests
         }, korean: false);
 
         Assert.That(srt, Is.EqualTo(
-            "1\n00:00:00,000 --> 00:00:03,500\nA 2023 project migrated to Unity 6\n\n" +
+            "1\n00:00:00,000 --> 00:00:03,500\nMigrated from Unity 2022.3 to Unity 6\n\n" +
             "2\n00:00:12,250 --> 00:00:13,950\nSkeleton warrior down (2/2)\nThe boss door opens once both skeleton warriors fall\n\n" +
             "3\n00:00:14,000 --> 00:00:17,500\nBoss AOE: leave the circle before the cast ends to dodge\n\n")); // the repeat cast gets none
     }
