@@ -30,7 +30,7 @@ namespace VideoCapture
         // {0} is the event's Detail.
         private static readonly Dictionary<string, (string ko, string en)> Lines = new()
         {
-            ["start"] = ("2023년 프로젝트를 Unity 6으로 마이그레이션", "A 2023 project migrated to Unity 6"),
+            ["start"] = ("2023년 프로젝트를 Unity 6로 마이그레이션", "A 2023 project migrated to Unity 6"),
             ["camera"] = ("Cinemachine 3 카메라: 휠로 줌, 오른쪽 버튼 드래그로 회전", "Cinemachine 3 camera: wheel to zoom, right-drag to orbit"),
             ["walk"] = ("/ 키로 걷기와 달리기 전환", "/ toggles walking and running"),
             ["battle-pose"] = ("전투 중이 아닐 때 Z 키로 전투 자세 전환", "Z toggles the battle stance outside combat"),
