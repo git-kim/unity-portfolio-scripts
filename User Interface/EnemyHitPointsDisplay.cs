@@ -9,6 +9,8 @@ namespace UserInterface
         private const float ReferenceScreenWidth = 700f;
         // Up to this camera distance a bar keeps its size on screen; farther away it shrinks like its enemy does.
         private const float ConstantSizeDistance = 10f;
+        // Screen pixels (at the reference width) between the top of the head and the bar's center.
+        private const float GapAboveHead = 30f;
 
         private GameObject enemyGameObject;
         private Camera mainCamera;
@@ -53,8 +55,17 @@ namespace UserInterface
 
         private void UpdatePosition()
         {
-            thisTransform.position =
-                enemyTransform.position + (enemyHeight * enemyTransform.lossyScale.y + 0.5f) * Vector3.up;
+            // Offset the bar on screen, not in the world: a world "up" offset slides sideways once the camera
+            // looks steeply up or down, which pulled the bar away from its enemy.
+            var head = enemyTransform.position + enemyHeight * enemyTransform.lossyScale.y * Vector3.up;
+            var screenPoint = mainCamera.WorldToScreenPoint(head);
+            if (screenPoint.z <= 0f) // behind the camera: nothing to show
+            {
+                thisTransform.position = head;
+                return;
+            }
+            screenPoint.y += GapAboveHead * Screen.width / ReferenceScreenWidth * Mathf.Min(1f, ConstantSizeDistance / screenPoint.z);
+            thisTransform.position = mainCamera.ScreenToWorldPoint(screenPoint);
         }
 
         private void UpdateLocalScale()

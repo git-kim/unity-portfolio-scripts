@@ -98,6 +98,36 @@ public class GameFlowTests
     }
 
     [UnityTest]
+    public IEnumerator EnemyHitPointsStayRightAboveTheHeadAtEveryCameraAngle()
+    {
+        var skeleton = Skeletons[0];
+        var bar = ((Component)typeof(Enemy).GetField("hitPointsDisplay", BindingFlags.NonPublic | BindingFlags.Instance)
+            .GetValue(skeleton)).transform;
+        var height = skeleton.GetComponent<CharacterController>().height * skeleton.transform.lossyScale.y;
+        Teleport(Player, skeleton.transform.position + skeleton.transform.forward * 2f + Vector3.up * 0.2f);
+        yield return WaitUntil(() => bar.gameObject.activeSelf, 5f, "the skeleton's bar to show");
+
+        // A low camera looking up and a high one looking down are where a world-space "up" offset used to
+        // slide the bar sideways, away from the head.
+        var orbital = Object.FindAnyObjectByType<Unity.Cinemachine.CinemachineOrbitalFollow>();
+        var camera = Camera.main;
+        float? gap = null;
+        foreach (var ring in new[] { 0.15f, 0.5f, 1f })
+        foreach (var yaw in new[] { -90f, 0f, 90f, 120f })
+        {
+            orbital.VerticalAxis.Value = ring;
+            orbital.HorizontalAxis.Value = yaw;
+            for (var i = 0; i < 30; i++)
+                yield return null;
+            var head = camera.WorldToScreenPoint(skeleton.transform.position + Vector3.up * height);
+            var onBar = camera.WorldToScreenPoint(bar.position);
+            Assert.That(onBar.x - head.x, Is.EqualTo(0f).Within(1f), $"ring {ring}, yaw {yaw}: the bar slid sideways");
+            gap ??= onBar.y - head.y;
+            Assert.That(onBar.y - head.y, Is.EqualTo(gap.Value).Within(1f), $"ring {ring}, yaw {yaw}: the gap above the head changed");
+        }
+    }
+
+    [UnityTest]
     public IEnumerator EnemyHitPointsFaceTheCameraInTheSameFrameWhileItTurns()
     {
         var skeleton = Skeletons[0];
