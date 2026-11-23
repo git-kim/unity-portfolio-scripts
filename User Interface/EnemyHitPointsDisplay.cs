@@ -6,6 +6,8 @@ namespace UserInterface
     {
         // The screen UI's CanvasScaler matches a 700-pixel-wide reference; the bars follow the same scale.
         private const float ReferenceScreenWidth = 700f;
+        // Up to this camera distance a bar keeps its size on screen; farther away it shrinks like its enemy does.
+        private const float ConstantSizeDistance = 10f;
 
         private GameObject enemyGameObject;
         private Camera mainCamera;
@@ -51,8 +53,9 @@ namespace UserInterface
         private void UpdateLocalScale()
         {
             var screenHeight = heightOnScreen * Screen.width / ReferenceScreenWidth;
-            var tempPos = mainCamera.ScreenToWorldPoint(mainCamera.WorldToScreenPoint(thisTransform.position) + Vector3.up * screenHeight);
-            thisTransform.localScale = initialLocalScale * (tempPos - thisTransform.position).magnitude;
+            var depth = Vector3.Dot(thisTransform.position - mainCameraTransform.position, mainCameraTransform.forward);
+            var worldPerPixel = 2f * Mathf.Tan(mainCamera.fieldOfView * 0.5f * Mathf.Deg2Rad) / Screen.height;
+            thisTransform.localScale = initialLocalScale * (screenHeight * worldPerPixel * Mathf.Clamp(depth, 0.1f, ConstantSizeDistance));
         }
 
         private void UpdateRotationToLookAtCamera()

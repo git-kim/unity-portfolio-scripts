@@ -1,0 +1,23 @@
+{
+    "name": "Portfolio.Editor.VideoCapture",
+    "rootNamespace": "VideoCapture",
+    "references": [
+        "Portfolio.Game",
+        "Unity.Recorder.Editor",
+        "Unity.Recorder.Base",
+        "Unity.InputSystem",
+        "UnityEngine.UI",
+        "Unity.Cinemachine"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -88,6 +88,7 @@ namespace Characters
             InitializeCharacterActionHandler();
 
             hitPointsDisplay.Initialize(Transform, CharacterController);
+            hitPointsDisplay.SetActive(false); // shown only while this enemy is fighting
             enemyStatChangeDisplay.Initialize(this, CharacterController);
 
             if (skill)
@@ -258,6 +259,7 @@ namespace Characters
             navMeshAgent.isStopped = false;
             navMeshAgent.SetDestination(originalPosition);
             GameManager.Instance.SetEngaged(this, false);
+            hitPointsDisplay.SetActive(false);
             state = EnemyState.Returning;
         }
 
@@ -382,6 +384,7 @@ namespace Characters
                     if (skill)
                         skill.ResetCoolDown();
                     GameManager.Instance.SetEngaged(this, true);
+                    hitPointsDisplay.SetActive(true);
                 }
             }
             else if (GameManager.Instance.PlayersAlive.Count > 0)

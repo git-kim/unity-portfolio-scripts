@@ -10,11 +10,14 @@ public class PlayerCameraController : MonoBehaviour
     // Orbit speed while the right mouse button is held (same values the old FreeLook axes used).
     private const float HorizontalSpeed = 8f;
     private const float VerticalSpeed = 0.05f;
+    private const float ZoomSmoothTime = 0.15f;
 
     private CinemachineCamera virtualMainCamera;
     private CinemachineOrbitalFollow orbitalFollow;
     private MousePosition mousePosition;
     private float mouseWheelValue;
+    private float targetFieldOfView;
+    private float zoomVelocity;
     private bool isRotating;
 
     private struct MousePosition
@@ -38,6 +41,7 @@ public class PlayerCameraController : MonoBehaviour
     {
         virtualMainCamera = GetComponentInChildren<CinemachineCamera>();
         orbitalFollow = virtualMainCamera.GetComponent<CinemachineOrbitalFollow>();
+        targetFieldOfView = virtualMainCamera.Lens.FieldOfView;
     }
 
     void Update()
@@ -73,10 +77,11 @@ public class PlayerCameraController : MonoBehaviour
         mouseWheelValue = KeyManager.Instance.MouseWheel;
 
         if (Mathf.Abs(mouseWheelValue) > 0.0078125f)
-        {
-            virtualMainCamera.Lens.FieldOfView =
-                Mathf.Clamp(virtualMainCamera.Lens.FieldOfView - mouseWheelValue * 20f, 20f, 80f); // wheel down zooms out
-        }
+            targetFieldOfView = Mathf.Clamp(targetFieldOfView - mouseWheelValue * 20f, 20f, 80f); // wheel down zooms out
+
+        // Ease toward the wheel's target instead of jumping a step per notch.
+        virtualMainCamera.Lens.FieldOfView =
+            Mathf.SmoothDamp(virtualMainCamera.Lens.FieldOfView, targetFieldOfView, ref zoomVelocity, ZoomSmoothTime);
     }
 
     private void StopRotating()
